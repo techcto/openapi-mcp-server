@@ -182,3 +182,13 @@ The server provides several monitoring endpoints:
 - CORS configuration
 - Error sanitization in production
 - Non-root Docker user
+
+## 📜 License & Attribution
+
+This project is licensed under the **MIT License**.
+
+Originally inspired by [`openapi-introspect`](https://github.com/hannesjunnila/openapi-introspect) by [Hannes Junnila](https://github.com/hannesjunnila).
+
+While most of the codebase has been rewritten for dynamic tool loading, async schemas, and HTTP server use, the core inspiration of exposing OpenAPI specs to LLMs comes from that foundation.
+
+---
