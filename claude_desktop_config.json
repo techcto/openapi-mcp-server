@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "CMS": {
+      "command": "node",
+      "args": ["C:\\Code\\cms\\submodules\\mcp-openapi-server\\src\\client.js"],
+      "env": {
+        "OPENAPI_URL": "http://proxy/public/api/system/swagger.json",
+        "API_BASE_URL": "http://proxy/api",
+        "LOG_LEVEL": "INFO",
+        "API_KEY": "MGYyNjVjMGM3NjIwYjE5NWE1YjIwNjBiZTI1MmUzMzV8T3lvVnVXVkIxbG5mZC9lM1R5L0p8djE="
+      }
+    }
+  }
+}

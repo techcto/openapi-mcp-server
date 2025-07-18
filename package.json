@@ -1,0 +1,58 @@
+{
+  "name": "openapi-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for exposing OpenAPI to LLMs with HTTP and STDIO transports",
+  "license": "MIT",
+  "author": "TechCTO (Shawn Moore)",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "mcp-openapi-client": "src/client.js",
+    "mcp-openapi-server": "src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "client": "node src/client.js",
+    "dev": "nodemon src/server.js",
+    "dev:client": "nodemon src/client.js",
+    "test": "node test/test-server.js",
+    "test:mcp": "node test/test-mcp.js",
+    "test:all": "npm run test && npm run test:mcp"
+  },
+  "keywords": [
+    "openapi",
+    "swagger",
+    "mcp",
+    "llm",
+    "gpt",
+    "claude",
+    "api",
+    "server",
+    "http",
+    "stdio",
+    "rest"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
+    "express": "^4.18.2",
+    "morgan": "^1.10.0",
+    "cors": "^2.8.5",
+    "js-yaml": "^4.1.0",
+    "node-fetch": "^3.3.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/openapi-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/openapi-mcp-server/issues"
+  },
+  "homepage": "https://github.com/your-username/openapi-mcp-server#readme"
+}
