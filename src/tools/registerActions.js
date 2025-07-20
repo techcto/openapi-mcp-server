@@ -313,9 +313,20 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
           // Use args directly - the registration loop now extracts them correctly
           console.error(`[🔍 DEBUG] ${toolName} called with args:`, JSON.stringify(args, null, 2));
 
-          const { headers: extraHeaders = {}, params: explicitParams, bearerToken, ...rest } = args;
+          const {
+            headers: extraHeaders = {},
+            params: explicitParams,
+            bearerToken,
+            Authorization,
+            ...rest
+          } = args;
           const finalBaseUrl = defaultBaseUrl;
-          const finalBearerToken = bearerToken || process.env.API_KEY;
+          const finalBearerToken =
+            bearerToken ||
+            (typeof Authorization === 'string' && Authorization.startsWith('Bearer ')
+              ? Authorization.slice(7)
+              : undefined) ||
+            process.env.API_KEY;
 
           // Replace path parameters
           let actualPath = path;

@@ -154,7 +154,8 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
         name: z.string().describe("Component name (e.g., user, asset_category)")
       }),
       handler: async (args = {}) => {
-        const { type, name } = args;
+        const type = args.type || args.component_type;
+        const name = args.name || args.component_name;
         const schemaPath = defaultConfig.openapiSchemaPath;
         const openApiDoc = await loadSchema(schemaPath);
         const component = openApiDoc.components?.[type]?.[name];
