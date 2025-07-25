@@ -122,7 +122,7 @@ console.error(`[DEBUG] MCP Server created with config:`, {
 
 try {
   const schemaPath = process.env.OPENAPI_URL || 
-                    "http://localhost/public/api/system/swagger.json";
+                    "http://host.docker.internal/public/api/system/swagger.json";
 
   console.error(`[DEBUG] Schema path:`, schemaPath);
 
