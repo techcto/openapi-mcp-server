@@ -6,7 +6,7 @@ import { handleValidationError } from '../services/mcpMessageHandler.js';
 export const setupLegacy = (app, toolMap) => {
   // Initialize endpoint - required by MCP protocol
   app.post("/initialize", async (req, res) => {
-    console.log("🔌 MCP Initialize request received");
+    console.log("\ud83d\udd0c MCP Initialize request received");
 
     res.json({
       protocolVersion: CONFIG.mcp.protocolVersion,
@@ -20,7 +20,7 @@ export const setupLegacy = (app, toolMap) => {
 
   // List tools endpoint - required by MCP protocol
   app.post("/tools/list", async (req, res) => {
-    console.log("🔧 MCP Tools list request received");
+    console.log("\ud83d\udd27 MCP Tools list request received");
 
     try {
       const tools = getToolsArray(toolMap).map(tool => ({
@@ -35,7 +35,7 @@ export const setupLegacy = (app, toolMap) => {
         tools: tools,
       });
     } catch (err) {
-      console.error("❌ Error listing tools:", err);
+      console.error("\u274c Error listing tools:", err);
       res.status(500).json({
         error: {
           code: -1,
@@ -49,14 +49,31 @@ export const setupLegacy = (app, toolMap) => {
   app.post("/tools/call", async (req, res) => {
     const { name, arguments: args = {} } = req.body;
 
-    console.log("🔧 MCP Tool call request received:");
-    console.log("🔧 Tool name:", name);
-    console.log("📦 Arguments:", args);
+    console.log("\ud83d\udd27 MCP Tool call request received:");
+    console.log("\ud83d\udd27 Tool name:", name);
+    console.log("\ud83d\udce6 Arguments:", args);
+
+    if (name === "list-tools") {
+      const tools = getToolsArray(toolMap).map(tool => ({
+        name: tool.name,
+        description: tool.description || "",
+        inputSchema: tool.inputSchema || { type: "object", properties: {} },
+      }));
+
+      return res.json({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ tools }, null, 2),
+          },
+        ],
+      });
+    }
 
     const tool = getTool(toolMap, name);
 
     if (!tool) {
-      console.warn(`⚠️ Tool '${name}' not found.`);
+      console.warn(`\u26a0\ufe0f Tool '${name}' not found.`);
       return res.status(404).json({
         error: {
           code: -1,
@@ -68,11 +85,11 @@ export const setupLegacy = (app, toolMap) => {
     try {
       const schemaPath = getSchemaPath(args);
       const parsed = parseToolArguments(tool, args, schemaPath);
-      
-      console.log("✅ Parsed and validated arguments:", parsed);
+
+      console.log("\u2705 Parsed and validated arguments:", parsed);
 
       const execution = await executeTool(tool, parsed);
-      
+
       if (execution.success) {
         res.json({
           content: [
@@ -86,9 +103,8 @@ export const setupLegacy = (app, toolMap) => {
         throw execution.error;
       }
     } catch (err) {
-      console.error("❌ Error invoking tool:", err);
+      console.error("\u274c Error invoking tool:", err);
 
-      // Handle Zod validation errors
       const validationError = handleValidationError(err, null);
       if (validationError) {
         return res.status(400).json({
@@ -113,27 +129,36 @@ export const setupLegacy = (app, toolMap) => {
   app.post("/call-tool", async (req, res) => {
     const { name, arguments: args = {} } = req.body;
 
-    console.log("📥 Legacy tool request:");
-    console.log("🔧 Tool name:", name);
-    console.log("📦 Raw arguments:", args);
+    console.log("\ud83d\udce5 Legacy tool request:");
+    console.log("\ud83d\udd27 Tool name:", name);
+    console.log("\ud83d\udce6 Raw arguments:", args);
+
+    if (name === "list-tools") {
+      const tools = getToolsArray(toolMap).map(tool => ({
+        name: tool.name,
+        description: tool.description || "",
+        inputSchema: tool.inputSchema || { type: "object", properties: {} },
+      }));
+
+      return res.json({ tools });
+    }
 
     const tool = getTool(toolMap, name);
 
     if (!tool) {
-      console.warn(`⚠️ Tool '${name}' not found.`);
+      console.warn(`\u26a0\ufe0f Tool '${name}' not found.`);
       return res.status(404).json({ error: `Tool '${name}' not found.` });
     }
 
     try {
       const schemaPath = getSchemaPath(args);
       const parsed = parseToolArguments(tool, args, schemaPath);
-      
-      console.log("✅ Parsed and validated arguments:", parsed);
+
+      console.log("\u2705 Parsed and validated arguments:", parsed);
 
       const execution = await executeTool(tool, parsed);
-      
+
       if (execution.success) {
-        // For legacy endpoint, return the raw result
         const result = typeof execution.result === 'string' 
           ? JSON.parse(execution.result) 
           : execution.result;
@@ -142,9 +167,8 @@ export const setupLegacy = (app, toolMap) => {
         throw execution.error;
       }
     } catch (err) {
-      console.error("❌ Error invoking tool:", err);
+      console.error("\u274c Error invoking tool:", err);
 
-      // Handle Zod validation errors
       const validationError = handleValidationError(err, null);
       if (validationError) {
         return res.status(400).json({

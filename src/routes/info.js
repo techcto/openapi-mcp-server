@@ -2,9 +2,8 @@ import { CONFIG } from '../config/config.js';
 import { connectionManager } from '../services/connectionManager.js';
 import { getToolCount } from '../utils/toolUtils.js';
 
-// Info and health check endpoints
 export const setupInfo = (app, toolMap) => {
-  // Get server info
+  // MCP server info
   app.get("/", (req, res) => {
     res.json({
       name: CONFIG.server.name,
@@ -12,14 +11,14 @@ export const setupInfo = (app, toolMap) => {
       description: CONFIG.server.description + " via MCP protocol",
       endpoints: {
         mcp: {
-          sse: "GET /sse - Server-Sent Events for MCP",
-          messages: "POST /mcp - Send MCP JSON-RPC messages"
+          streamableHttp: "POST /mcp - Claude HTTP streamable transport",
+          sse: "GET /mcp/api/v1/u/:token/sse - Claude SSE transport",
         },
         legacy: {
-          initialize: "POST /initialize",
-          listTools: "POST /tools/list",
-          callTool: "POST /tools/call",
-          callToolLegacy: "POST /call-tool"
+          initialize: "POST /initialize - MCP init handshake",
+          listTools: "POST /tools/list - List registered tools",
+          callTool: "POST /tools/call - Execute a tool by name",
+          callToolLegacy: "POST /call-tool - Legacy direct call"
         },
         info: {
           health: "GET /health",
@@ -27,10 +26,13 @@ export const setupInfo = (app, toolMap) => {
         }
       },
       toolCount: getToolCount(toolMap),
-      activeConnections: connectionManager.getConnectionCount(),
+      activeConnections: connectionManager.getConnectionCount?.() ?? "n/a",
       usage: {
-        postman: `In Postman MCP interface, use: http://localhost:${CONFIG.server.port}/sse`,
-        claude: `Use 'sse' transport with URL: http://localhost:${CONFIG.server.port}/sse`
+        postman: `Use POST: http://localhost:${CONFIG.server.port}/call-tool`,
+        claude: {
+          streamingPreferred: `Use MCP URL: http://localhost:${CONFIG.server.port}/mcp/api/v1/u/<token>/sse`,
+          fallback: `Or MCP URL: http://localhost:${CONFIG.server.port}/mcp`,
+        }
       }
     });
   });
@@ -41,7 +43,7 @@ export const setupInfo = (app, toolMap) => {
       status: "healthy",
       timestamp: new Date().toISOString(),
       toolCount: getToolCount(toolMap),
-      activeConnections: connectionManager.getConnectionCount()
+      activeConnections: connectionManager.getConnectionCount?.() ?? "n/a"
     });
   });
 };
