@@ -118,14 +118,14 @@ npm run client
 
 ## 🎯 What You Get
 
-### For Petstore API, you'll get tools like:
-- **search-pet** - Find pets by status
-- **create-pet** - Add a new pet  
-- **read-pet** - Get pet by ID
-- **update-pet** - Update pet info
-- **delete-pet** - Remove a pet
-- **search-store** - Check inventory
-- **create-user** - Register new user
+### For a content API, you'll get tools like:
+- **search-pages** - Find pages by title, path, or status
+- **create-page** - Create a new page
+- **read-page** - Get a page by ID
+- **update-page** - Update page content
+- **publish-page** - Publish a page
+- **read-post** - Load a content record
+- **update-post** - Edit an existing content record
 - ...and more!
 
 ### Plus schema analysis tools:

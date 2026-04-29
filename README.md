@@ -13,7 +13,7 @@ This repo is intentionally generic. CMS is one target, but the same server can f
 Point the server at an OpenAPI spec and it will expose:
 
 - schema tools like `list-endpoints`, `get-endpoint`, and `search-schema`
-- generated execution tools like `search-users`, `create-post`, or `delete-ticket`
+- generated execution tools like `search-pages`, `publish-page`, or `create-ticket`
 - a generic `execute-request` tool for custom calls
 
 ## Quick Start
@@ -206,11 +206,11 @@ Schema loading from remote URLs also uses the upstream bearer token.
 
 Generated from paths and methods in the OpenAPI spec, for example:
 
-- `search-users`
-- `create-user`
-- `read-user`
-- `update-user`
-- `delete-user`
+- `search-pages`
+- `create-page`
+- `read-page`
+- `update-page`
+- `publish-page`
 
 And always:
 
