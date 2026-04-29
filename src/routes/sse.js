@@ -12,7 +12,7 @@ export const setupSSE = (app, toolMap) => {
     const pathToken = req.params?.token;
     const authHeader = req.headers['authorization'] || (pathToken ? `Bearer ${pathToken}` : '');
 
-    if (CONFIG.requireAuth && !authHeader.startsWith('Bearer ')) {
+    if (CONFIG.auth?.requireAuth && !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

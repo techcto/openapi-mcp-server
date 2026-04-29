@@ -91,14 +91,7 @@ export const setupLegacy = (app, toolMap) => {
       const execution = await executeTool(tool, parsed);
 
       if (execution.success) {
-        res.json({
-          content: [
-            {
-              type: "text",
-              text: execution.result,
-            },
-          ],
-        });
+        res.json(execution.result);
       } else {
         throw execution.error;
       }
@@ -159,10 +152,7 @@ export const setupLegacy = (app, toolMap) => {
       const execution = await executeTool(tool, parsed);
 
       if (execution.success) {
-        const result = typeof execution.result === 'string' 
-          ? JSON.parse(execution.result) 
-          : execution.result;
-        res.json(result);
+        res.json(execution.result);
       } else {
         throw execution.error;
       }

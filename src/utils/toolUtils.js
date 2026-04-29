@@ -1,4 +1,75 @@
+import { isToolAllowed } from "../config/config.js";
+
 // Utility functions for tool management
+
+const mapZodType = (definition = {}) => {
+  const typeName = definition.typeName || '';
+
+  switch (typeName) {
+    case 'ZodString':
+      return { type: 'string' };
+    case 'ZodNumber':
+      return { type: 'number' };
+    case 'ZodBoolean':
+      return { type: 'boolean' };
+    case 'ZodEnum':
+      return { type: 'string', enum: Array.isArray(definition.values) ? definition.values : [] };
+    case 'ZodOptional':
+    case 'ZodDefault':
+      return mapZodType(definition.innerType?._def || definition.type?._def || {});
+    default:
+      return { type: 'string' };
+  }
+};
+
+const buildInputSchema = (shape = {}) => {
+  const properties = {};
+  const required = [];
+
+  for (const [key, field] of Object.entries(shape)) {
+    const fieldDef = field?._def || {};
+    properties[key] = {
+      ...mapZodType(fieldDef),
+      description:
+        typeof field.description === 'string'
+          ? field.description
+          : typeof fieldDef.description === 'string'
+            ? fieldDef.description
+            : `Parameter: ${key}`
+    };
+
+    if (fieldDef.defaultValue !== undefined) {
+      properties[key].default =
+        typeof fieldDef.defaultValue === 'function' ? fieldDef.defaultValue() : fieldDef.defaultValue;
+    }
+
+    if (fieldDef.typeName !== 'ZodOptional' && fieldDef.typeName !== 'ZodDefault') {
+      required.push(key);
+    }
+  }
+
+  return {
+    type: "object",
+    properties,
+    ...(required.length ? { required } : {}),
+    additionalProperties: true
+  };
+};
+
+const normalizeToolResult = (result) => {
+  if (result && typeof result === 'object' && Array.isArray(result.content)) {
+    return result;
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: typeof result === "string" ? result : JSON.stringify(result, null, 2)
+      }
+    ]
+  };
+};
 
 /**
  * Get tools array from toolMap (handles both Map and Object)
@@ -11,28 +82,14 @@ export const getToolsArray = (toolMap) => {
     tools = Array.from(toolMap.entries()).map(([name, tool]) => ({
       name: name,
       description: tool.description || `Tool: ${name}`,
-      inputSchema: {
-        type: "object",
-        properties: tool.schema?.shape ? Object.keys(tool.schema.shape).reduce((acc, key) => {
-          acc[key] = { type: "string", description: `Parameter: ${key}` };
-          return acc;
-        }, {}) : {},
-        additionalProperties: true
-      }
+      inputSchema: buildInputSchema(tool.schema?.shape || {})
     }));
   } else if (toolMap && typeof toolMap === 'object') {
     // toolMap is an Object
     tools = Object.entries(toolMap).map(([name, tool]) => ({
       name: name,
       description: tool.description || `Tool: ${name}`,
-      inputSchema: {
-        type: "object",
-        properties: tool.schema?.shape ? Object.keys(tool.schema.shape).reduce((acc, key) => {
-          acc[key] = { type: "string", description: `Parameter: ${key}` };
-          return acc;
-        }, {}) : {},
-        additionalProperties: true
-      }
+      inputSchema: buildInputSchema(tool.schema?.shape || {})
     }));
   } else {
     console.error("toolMap is not iterable:", typeof toolMap, toolMap);
@@ -62,14 +119,14 @@ export const filterValidTools = (toolMap) => {
   if (toolMap instanceof Map) {
     filteredToolMap = new Map();
     toolMap.forEach((tool, name) => {
-      if (tool && typeof tool.handler === 'function') {
+      if (tool && typeof tool.handler === 'function' && isToolAllowed(name)) {
         filteredToolMap.set(name, tool);
       }
     });
   } else if (typeof toolMap === 'object' && toolMap !== null) {
     filteredToolMap = {};
     Object.entries(toolMap).forEach(([name, tool]) => {
-      if (tool && typeof tool.handler === 'function') {
+      if (tool && typeof tool.handler === 'function' && isToolAllowed(name)) {
         filteredToolMap[name] = tool;
       }
     });
@@ -121,7 +178,7 @@ export const executeTool = async (tool, parsedArgs) => {
     console.log("✅ Tool executed successfully");
     return {
       success: true,
-      result: typeof result === "string" ? result : JSON.stringify(result, null, 2)
+      result: normalizeToolResult(result)
     };
   } catch (err) {
     console.error("❌ Error invoking tool:", err);

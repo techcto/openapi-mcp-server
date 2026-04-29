@@ -28,10 +28,10 @@ export const setupInfo = (app, toolMap) => {
       toolCount: getToolCount(toolMap),
       activeConnections: connectionManager.getConnectionCount?.() ?? "n/a",
       usage: {
-        postman: `Use POST: http://localhost:${CONFIG.server.port}/call-tool`,
+        postman: `Use POST: ${CONFIG.server.publicBaseUrl}/call-tool`,
         claude: {
-          streamingPreferred: `Use MCP URL: http://localhost:${CONFIG.server.port}/mcp/api/v1/u/<token>/sse`,
-          fallback: `Or MCP URL: http://localhost:${CONFIG.server.port}/mcp`,
+          streamingPreferred: `Use MCP URL: ${CONFIG.server.publicBaseUrl}/mcp/api/v1/u/<token>/sse`,
+          fallback: `Or MCP URL: ${CONFIG.server.publicBaseUrl}/mcp`,
         }
       }
     });

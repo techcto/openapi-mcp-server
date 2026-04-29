@@ -116,14 +116,7 @@ const handleToolCall = async (message, toolMap) => {
       return {
         jsonrpc: "2.0",
         id: message.id,
-        result: {
-          content: [
-            {
-              type: "text",
-              text: execution.result
-            }
-          ]
-        }
+        result: execution.result
       };
     } else {
       throw execution.error;

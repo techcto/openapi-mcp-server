@@ -1,103 +1,130 @@
 # OpenAPI MCP Server
 
-A powerful Node.js server that dynamically converts any OpenAPI/Swagger specification into **Model Context Protocol (MCP) tools**, making APIs instantly accessible to AI assistants like Claude.
+A reusable MCP server that turns any OpenAPI or Swagger spec into:
 
-## 🚀 What This Does
+- discovery tools for schema inspection
+- execution tools for calling the underlying API
+- HTTP and STDIO transports for OpenAI, Claude, Osirus, and other MCP clients
 
-Transform any REST API into AI-friendly tools in seconds:
+This repo is intentionally generic. CMS is one target, but the same server can front Zendesk, WordPress, internal APIs, and other OpenAPI-backed systems.
 
-1. **Point to any OpenAPI spec** (local file or URL)
-2. **Get instant MCP tools** for schema analysis AND API execution
-3. **Use with Claude** or any MCP-compatible AI assistant
+## What It Does
 
-## ✨ Key Features
+Point the server at an OpenAPI spec and it will expose:
 
-- **Universal Compatibility**: Works with any OpenAPI 2.x or 3.x specification
-- **Dual Tool Types**: Schema analysis tools + Dynamic HTTP execution tools
-- **Multiple Transports**: HTTP server + STDIO for Claude integration
-- **Auto-Discovery**: Automatically generates CRUD tools from your API paths
-- **Zero Configuration**: Just point to a schema and go
-- **Production Ready**: Full error handling, logging, and monitoring
+- schema tools like `list-endpoints`, `get-endpoint`, and `search-schema`
+- generated execution tools like `search-users`, `create-post`, or `delete-ticket`
+- a generic `execute-request` tool for custom calls
 
-## 📦 Quick Start
+## Quick Start
 
 ```bash
-# Install
-git clone https://github.com/your-username/openapi-mcp-server.git
-cd openapi-mcp-server
 npm install
 
-# Configure (pick one)
 export OPENAPI_URL="https://petstore.swagger.io/v2/swagger.json"
-export OPENAPI_URL="./samples/petstore.yaml"
-export OPENAPI_URL="https://your-api.com/swagger.json"
+export API_BASE_URL="https://petstore.swagger.io/v2"
 
-# Start the server
 npm start
 ```
 
-**That's it!** Your API is now available as MCP tools.
+Server endpoints:
 
-## 🛠️ What You Get
+- `GET /` info
+- `GET /health`
+- `POST /mcp`
+- `GET /sse`
+- `GET /mcp/api/v1/u/:token/sse`
+- `POST /tools/list`
+- `POST /tools/call`
+- `POST /call-tool`
 
-### Schema Analysis Tools (Always Available)
-- **list-endpoints** - See all API paths and methods
-- **get-endpoint** - Detailed endpoint information
-- **get-request-body** - Request schemas and validation
-- **get-response-schema** - Response formats
-- **list-components** - Schema components and models
-- **search-schema** - Full-text search across the spec
-- **list-security-schemes** - Authentication methods
+## How To Use It
 
-### Dynamic HTTP Execution Tools (Auto-Generated)
-For each API endpoint, get semantic tools like:
-- **search-users** - `GET /users` 
-- **create-user** - `POST /users`
-- **read-user** - `GET /users/{id}`
-- **update-user** - `PUT /users/{id}`
-- **delete-user** - `DELETE /users/{id}`
-- **execute-request** - Generic HTTP execution tool
+### 1. Run it against a target API
 
-## 🎯 Real-World Examples
+Example: CMS
 
-### Petstore API
 ```bash
-export OPENAPI_URL="https://petstore.swagger.io/v2/swagger.json"
+export OPENAPI_URL="https://your-cms.example.com/public/api/system/swagger.json"
+export API_BASE_URL="https://your-cms.example.com/public/api"
+export OPENAPI_AUTH_TOKEN="cms-api-bearer-token"
 npm start
 ```
-**Result**: 15+ tools including `search-pet`, `create-pet`, `update-pet`, etc.
 
-### Your Company API
+Example: Zendesk
+
 ```bash
-export OPENAPI_URL="https://your-company.com/api/swagger.json"
-export API_BASE_URL="https://your-company.com/api"
-export API_TOKEN="your-bearer-token"
+export OPENAPI_URL="https://your-proxy.example.com/zendesk/openapi.json"
+export API_BASE_URL="https://your-subdomain.zendesk.com/api/v2"
+export OPENAPI_AUTH_TOKEN="zendesk-api-token-or-proxy-token"
 npm start
 ```
-**Result**: Full API access through semantic tools + Claude integration
 
-### Local Development
+Example: WordPress
+
 ```bash
-export OPENAPI_URL="./openapi.yaml"
-export API_BASE_URL="http://localhost:3000"
+export OPENAPI_URL="https://your-wordpress.example.com/wp-json/openapi.json"
+export API_BASE_URL="https://your-wordpress.example.com/wp-json"
+export OPENAPI_AUTH_TOKEN="wp-api-token"
 npm start
 ```
-**Result**: Local API testing through MCP tools
 
-## 🔧 Configuration
+### 2. Protect the MCP server itself
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `OPENAPI_URL` | Path or URL to OpenAPI spec | `./spec.yaml` or `https://api.com/swagger.json` |
-| `API_BASE_URL` | Base URL for API execution | `https://api.example.com` |
-| `API_TOKEN` | Bearer token for authentication | `eyJhbGciOiJIUzI1NiIs...` |
-| `PORT` | Server port | `8000` (default) |
+If you want Osirus, OpenAI tools, Claude, or another client to authenticate to this MCP server, set one or more MCP auth tokens:
 
-## 🤖 Claude Integration
+```bash
+export MCP_AUTH_TOKEN="shared-mcp-token"
+```
 
-### For Desktop Claude
-1. Start the MCP client: `npm run client`
-2. Add to your Claude config:
+Or:
+
+```bash
+export MCP_AUTH_TOKENS="token-a,token-b,token-c"
+```
+
+Then clients call the MCP server with:
+
+```http
+Authorization: Bearer shared-mcp-token
+```
+
+Claude-style SSE URLs also work:
+
+```text
+https://your-mcp.example.com/mcp/api/v1/u/shared-mcp-token/sse
+```
+
+### 3. Connect a client
+
+#### HTTP MCP
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer shared-mcp-token" \
+  -d '{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"tools/list",
+    "params":{}
+  }'
+```
+
+#### Legacy HTTP tool call
+
+```bash
+curl -X POST http://localhost:8000/tools/call \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer shared-mcp-token" \
+  -d '{
+    "name":"list-endpoints",
+    "arguments":{}
+  }'
+```
+
+#### Claude Desktop / STDIO
+
 ```json
 {
   "mcpServers": {
@@ -105,142 +132,145 @@ npm start
       "command": "node",
       "args": ["/path/to/openapi-mcp-server/src/client.js"],
       "env": {
-        "OPENAPI_URL": "https://your-api.com/swagger.json"
+        "OPENAPI_URL": "https://your-api.example.com/openapi.json",
+        "API_BASE_URL": "https://your-api.example.com",
+        "OPENAPI_AUTH_TOKEN": "upstream-api-token"
       }
     }
   }
 }
 ```
 
-### For Web/API Usage
-Use the HTTP endpoints directly:
+## Auth Model
+
+There are two separate token concerns:
+
+### 1. MCP server auth
+
+This protects access to the MCP server itself.
+
+Use:
+
+- `MCP_AUTH_TOKEN`
+- `MCP_AUTH_TOKENS`
+- optional `REQUIRE_AUTH=true|false`
+
+If any MCP auth token is configured, auth is required by default.
+
+### 2. Upstream API auth
+
+This is the bearer token the generated tools use when they call the underlying API.
+
+Use:
+
+- `OPENAPI_AUTH_TOKEN`
+- or `API_BEARER_TOKEN`
+
+Schema loading from remote URLs also uses the upstream bearer token.
+
+## Main Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `OPENAPI_URL` | URL or local path to the OpenAPI/Swagger spec |
+| `API_BASE_URL` | Base URL for execution tools |
+| `OPENAPI_AUTH_TOKEN` | Bearer token for the upstream API |
+| `API_BEARER_TOKEN` | Alternate name for upstream bearer token |
+| `MCP_AUTH_TOKEN` | Single bearer token for protecting the MCP server |
+| `MCP_AUTH_TOKENS` | Comma-separated list of valid MCP bearer tokens |
+| `REQUIRE_AUTH` | Force on/off MCP auth requirement |
+| `MCP_ALLOWED_TOOLS` | Comma-separated allowlist of exposed tool names |
+| `PORT` | HTTP port |
+| `HOST` | Bind host |
+| `PUBLIC_BASE_URL` | Public URL advertised in info output |
+| `SERVER_NAME` | Optional display name |
+| `SERVER_VERSION` | Optional display version |
+| `SERVER_DESCRIPTION` | Optional display description |
+| `CORS_ORIGIN` | Optional CORS origin override |
+
+## Tool Types
+
+### Schema tools
+
+- `list-endpoints`
+- `get-endpoint`
+- `get-request-body`
+- `get-response-schema`
+- `get-path-parameters`
+- `list-components`
+- `get-component`
+- `list-security-schemes`
+- `search-schema`
+
+### Execution tools
+
+Generated from paths and methods in the OpenAPI spec, for example:
+
+- `search-users`
+- `create-user`
+- `read-user`
+- `update-user`
+- `delete-user`
+
+And always:
+
+- `execute-request`
+
+## Security Notes
+
+- The MCP server auth token and upstream API token are intentionally separate.
+- Reserved outbound headers like `Authorization`, `Host`, and `Content-Length` are stripped before proxying and rebuilt safely.
+- Tool results are normalized to MCP `content` responses.
+- Tool allowlisting is supported through `MCP_ALLOWED_TOOLS`.
+- Do not expose admin-grade upstream tokens unless the API behind them is already scoped appropriately.
+
+## Testing
+
 ```bash
-curl -X POST http://localhost:8000/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{"name": "list-endpoints", "arguments": {}}'
+npm test
+npm run test:mcp
 ```
 
-## 📡 Available Transports
+## Recommended Product Use
 
-### HTTP Server (Web APIs)
-- `POST /tools/list` - List available tools
-- `POST /tools/call` - Execute tools
-- `GET /sse` - Server-Sent Events for real-time
-- `GET /health` - Health monitoring
+### Do I need a CMS provider?
 
-### STDIO (Claude Integration)
-- `npm run client` - Direct MCP protocol communication
-- Perfect for Claude Desktop integration
-- Full streaming support
+Not to run this repo by itself.
 
-## 🧪 Testing
+You only need env vars to run the server directly.
 
-```bash
-# Test with included Petstore sample
-cp .env.example .env
-# Edit .env: OPENAPI_URL=./samples/petstore.yaml
-npm start
+But yes, if you want this to become a real Solodev product feature, we should add a CMS provider so admins can manage:
 
-# Run comprehensive tests
-npm test        # HTTP endpoints
-npm run test:mcp    # MCP protocol
-npm run test:client # Full STDIO client
-npm run test:all    # Everything
+- MCP server URL
+- MCP auth token
+- upstream OpenAPI URL
+- upstream API bearer token
+- allowed tools
+- policy prompts / guardrails
+
+That provider should be generic, not CMS-only, so the same CMS UI can register:
+
+- Solodev MCP
+- Zendesk MCP
+- WordPress MCP
+- other OpenAPI MCP connections
+
+## Project Structure
+
+```text
+src/
+  server.js
+  client.js
+  config/
+  middleware/
+  routes/
+  services/
+  tools/
+  utils/
+test/
+samples/
 ```
 
-## 📁 Project Structure
+## License
 
-```
-├── src/
-│   ├── server.js           # HTTP server entry point
-│   ├── client.js           # STDIO client entry point
-│   ├── tools/
-│   │   ├── registerTools.js    # Schema analysis tools
-│   │   └── registerActions.js  # HTTP execution tools
-│   ├── utils/
-│   │   ├── schemaLoader.js     # OpenAPI schema loading
-│   │   └── toolUtils.js        # Tool management
-│   └── routes/             # HTTP route handlers
-├── test/                   # Comprehensive test suite
-└── samples/                # Example OpenAPI specs
-```
-
-## 🔍 How It Works
-
-1. **Schema Loading**: Loads OpenAPI spec from file or URL
-2. **Tool Generation**: Creates MCP tools for both analysis and execution
-3. **Dynamic Mapping**: Maps HTTP operations to semantic tool names
-4. **Parameter Handling**: Automatically handles path/query/body parameters
-5. **Authentication**: Supports Bearer tokens and API keys
-6. **Transport Agnostic**: Works over HTTP or STDIO
-
-## 🎨 Advanced Usage
-
-### Custom Tool Filtering
-```javascript
-// Only generate tools for specific paths
-const filteredPaths = ['/users', '/orders'];
-```
-
-### Authentication Strategies
-```bash
-# Bearer token
-export API_TOKEN="your-bearer-token"
-
-# API key in header
-export API_KEY="your-api-key"
-```
-
-### Multiple APIs
-Run multiple instances with different configs:
-```bash
-# API 1
-PORT=8001 OPENAPI_URL="api1.yaml" npm start &
-
-# API 2  
-PORT=8002 OPENAPI_URL="api2.yaml" npm start &
-```
-
-## 🚦 Supported APIs
-
-- ✅ **OpenAPI 3.x** (native support)
-- ✅ **Swagger 2.x** (full compatibility)
-- ✅ **REST APIs** with standard HTTP methods
-- ✅ **Authentication**: Bearer, API Key, OAuth2
-- ✅ **Parameter Types**: Path, Query, Header, Body
-- ✅ **Content Types**: JSON, Form data, URL encoded
-
-## 📊 Monitoring & Logging
-
-- Built-in health checks at `/health`
-- Structured logging with multiple levels
-- Request/response tracking
-- Error handling and reporting
-- Performance metrics
-
-## 🔒 Security
-
-- Request validation using Zod schemas
-- Bearer token support
-- CORS configuration
-- Rate limiting (configurable)
-- Error sanitization in production
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Add support for your OpenAPI spec
-3. Run the test suite: `npm run test:all`
-4. Submit a pull request
-
-## 📄 License
-
-MIT License - use this to make any API accessible to AI assistants!
-
-## 🙏 Attribution
-
-Originally inspired by [`openapi-introspect`](https://github.com/hannesjunnila/openapi-introspect) by Hannes Junnila. This project expands the concept with dynamic tool generation, HTTP execution, and full MCP protocol support.
-
----
-
-**Transform any API into AI-accessible tools in minutes, not hours.**
+MIT

@@ -23,7 +23,7 @@ const TEST_CONFIGS = {
     schemaPath: "http://localhost/public/api/system/swagger.json",
     isRemote: true,
     apiBaseUrl: "http://localhost/api",
-    // apiToken: "your_bearer_token_here"
+    // openapiAuthToken: "your_bearer_token_here"
   }
 };
 
@@ -43,7 +43,7 @@ console.log("SCHEMA_PATH:", config.schemaPath);
 // Set environment variables for the server process
 process.env.OPENAPI_URL = config.schemaPath;
 if (config.apiBaseUrl) process.env.API_BASE_URL = config.apiBaseUrl;
-if (config.apiToken) process.env.API_TOKEN = config.apiToken;
+if (config.openapiAuthToken) process.env.OPENAPI_AUTH_TOKEN = config.openapiAuthToken;
 
 // Helper function to load remote schema
 function loadRemoteSchema(url) {

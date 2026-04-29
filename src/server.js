@@ -60,30 +60,31 @@ try {
 
   // Setup routes
   setupSSE(app, validToolMap);
-  setupMCP(app, validToolMap);
+  setupMCP(app, validToolMap, mcpServer);
   setupLegacy(app, validToolMap);
   setupInfo(app, validToolMap);
 
   // Start server
-  const server = app.listen(CONFIG.server.port, () => {
+  const server = app.listen(CONFIG.server.port, CONFIG.server.host, () => {
     logger.serverEvent('start', {
+      host: CONFIG.server.host,
       port: CONFIG.server.port,
       toolCount: getToolCount(validToolMap),
       endpoints: {
-        info: `http://localhost:${CONFIG.server.port}`,
-        health: `http://localhost:${CONFIG.server.port}/health`,
-        sse: `http://localhost:${CONFIG.server.port}/sse`,
-        mcp: `http://localhost:${CONFIG.server.port}/mcp`
+        info: `${CONFIG.server.publicBaseUrl}`,
+        health: `${CONFIG.server.publicBaseUrl}/health`,
+        sse: `${CONFIG.server.publicBaseUrl}/sse`,
+        mcp: `${CONFIG.server.publicBaseUrl}/mcp`
       }
     });
 
-    console.log(`🚀 MCP server running at http://localhost:${CONFIG.server.port}`);
+    console.log(`🚀 MCP server running at ${CONFIG.server.publicBaseUrl}`);
     console.log(`📋 Available tools: ${getToolCount(validToolMap)}`);
-    console.log(`🔗 Server info: http://localhost:${CONFIG.server.port}`);
-    console.log(`❤️ Health check: http://localhost:${CONFIG.server.port}/health`);
-    console.log(`🌐 SSE endpoint: http://localhost:${CONFIG.server.port}/sse`);
-    console.log(`📨 MCP endpoint: http://localhost:${CONFIG.server.port}/mcp`);
-    console.log(`\n📝 For Postman MCP interface, use: http://localhost:${CONFIG.server.port}/sse`);
+    console.log(`🔗 Server info: ${CONFIG.server.publicBaseUrl}`);
+    console.log(`❤️ Health check: ${CONFIG.server.publicBaseUrl}/health`);
+    console.log(`🌐 SSE endpoint: ${CONFIG.server.publicBaseUrl}/sse`);
+    console.log(`📨 MCP endpoint: ${CONFIG.server.publicBaseUrl}/mcp`);
+    console.log(`\n📝 For Postman MCP interface, use: ${CONFIG.server.publicBaseUrl}/sse`);
   });
 
   // Graceful shutdown

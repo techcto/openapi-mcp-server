@@ -5,6 +5,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
  * Registers the MCP streamable HTTP endpoint
  */
 export const setupMCP = (app, toolMap, mcpServer) => {
+  if (!mcpServer) {
+    throw new Error("setupMCP requires an MCP server instance");
+  }
+
   app.all("/mcp", async (req, res) => {
     const transport = new StreamableHTTPServerTransport(req, res);
 

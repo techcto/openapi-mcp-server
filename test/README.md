@@ -84,7 +84,7 @@ cms: {
   schemaPath: "http://localhost/public/api/system/swagger.json",
   isRemote: true,
   apiBaseUrl: "http://localhost/api",
-  apiToken: "your_bearer_token_here"
+  openapiAuthToken: "your_bearer_token_here"
 }
 ```
 
@@ -97,7 +97,7 @@ yourapi: {
   schemaPath: "https://your-api.com/swagger.json",
   isRemote: true,
   apiBaseUrl: "https://your-api.com/api",
-  apiToken: process.env.YOUR_API_TOKEN
+  openapiAuthToken: process.env.YOUR_OPENAPI_AUTH_TOKEN
 }
 ```
 
@@ -200,7 +200,7 @@ Generated automatically based on your API structure:
 ```bash
 ❌ Tool call failed: 401 Unauthorized
 ```
-*Solution*: Set `API_TOKEN` environment variable for authentication
+*Solution*: Set `OPENAPI_AUTH_TOKEN` environment variable for bearer authentication
 
 ## 🔬 Advanced Testing
 
@@ -216,7 +216,7 @@ npm run test:client
 ### Authentication Testing
 ```bash
 # Test Bearer token authentication
-export API_TOKEN="eyJhbGciOiJIUzI1NiIs..."
+export OPENAPI_AUTH_TOKEN="eyJhbGciOiJIUzI1NiIs..."
 npm run test:client
 
 # Test API key authentication  
@@ -255,7 +255,7 @@ OPENAPI_URL="path/to/schema"
 
 # API execution
 API_BASE_URL="https://api.example.com"
-API_TOKEN="bearer-token"
+OPENAPI_AUTH_TOKEN="bearer-token"
 
 # Test behavior
 TEST_CONFIG="petstore|cms|custom"
@@ -272,7 +272,7 @@ const TEST_CONFIGS = {
     schemaPath: process.env.MY_SCHEMA_URL,
     isRemote: true,
     apiBaseUrl: process.env.MY_API_BASE,
-    apiToken: process.env.MY_API_TOKEN
+    openapiAuthToken: process.env.MY_OPENAPI_AUTH_TOKEN
   }
 };
 ```

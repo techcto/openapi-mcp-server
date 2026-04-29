@@ -2,8 +2,60 @@ import yaml from "js-yaml";
 import { z } from "zod";
 import { wrapTool } from "./wrapTool.js";
 import { logger } from "../utils/logger.js";
+import { CONFIG } from "../config/config.js";
 
 const toYaml = (obj) => yaml.dump(obj, { lineWidth: 100, noRefs: true });
+
+const SENSITIVE_HEADER_NAMES = new Set([
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'proxy-authorization',
+  'x-api-key',
+]);
+
+const sanitizeHeadersForLogs = (headers = {}) =>
+  Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key,
+      SENSITIVE_HEADER_NAMES.has(String(key).toLowerCase()) ? '[redacted]' : value,
+    ]),
+  );
+
+const sanitizeBodyForLogs = (body) => {
+  if (body === undefined || body === null) return body;
+  if (typeof body === 'string') return body.length > 500 ? `${body.slice(0, 500)}...` : body;
+  try {
+    return JSON.parse(JSON.stringify(body));
+  } catch {
+    return '[unserializable body]';
+  }
+};
+
+const resolveUpstreamBearerToken = (args = {}, headers = {}) => {
+  if (typeof args.bearerToken === 'string' && args.bearerToken.trim() !== '') {
+    return args.bearerToken.trim();
+  }
+
+  const authHeader = args.Authorization || args.authorization || headers.Authorization || headers.authorization;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+
+  return CONFIG.openapi.bearerToken || '';
+};
+
+const stripReservedHeaders = (headers = {}) => {
+  const nextHeaders = {};
+  for (const [key, value] of Object.entries(headers)) {
+    const normalized = String(key).toLowerCase();
+    if (normalized === 'authorization' || normalized === 'host' || normalized === 'content-length' || normalized === 'connection') {
+      continue;
+    }
+    nextHeaders[key] = value;
+  }
+  return nextHeaders;
+};
 
 // HTTP execution helper
 async function executeRequest(baseUrl, path, method, options = {}) {
@@ -13,30 +65,17 @@ async function executeRequest(baseUrl, path, method, options = {}) {
     headers = {},
     bearerToken
   } = options;
-  console.log("🐛 bearerToken seen in executeRequest:", bearerToken);
 
   const body = options.body ?? {};
 
   // Default to application/json
   const finalHeaders = {
     'Content-Type': 'application/json',
-    ...headers
+    ...stripReservedHeaders(headers)
   };
 
   if (bearerToken && typeof bearerToken === 'string') {
     finalHeaders['Authorization'] = `Bearer ${bearerToken}`;
-    console.log("✅ Attached Authorization header");
-  } else {
-    console.warn("⚠️ No bearerToken provided to attach Authorization header");
-  }
-
-  logger.debug("🧪 Raw tool params:", params);
-  logger.debug("real args:", params.arguments);
-  logger.debug("🔍 param keys:", Object.keys(params));
-  logger.debug("🔍 param.entries():");
-
-  for (const [key, value] of Object.entries(params)) {
-    logger.debug(`   ${key}: (${typeof value})`, value);
   }
 
   // Append query params for GET
@@ -63,8 +102,8 @@ async function executeRequest(baseUrl, path, method, options = {}) {
 
   try {
     console.log(`📡 ${method.toUpperCase()} ${finalUrl}`);
-    console.log(`🧾 Headers:`, finalHeaders);
-    console.log(`📦 Payload:`, fetchOptions.body);
+    logger.debug('🧾 Request headers', sanitizeHeadersForLogs(finalHeaders));
+    logger.debug('📦 Request payload', sanitizeBodyForLogs(fetchOptions.body));
 
     const response = await fetch(finalUrl, fetchOptions);
     const responseText = await response.text();
@@ -185,6 +224,7 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
   const defaultConfig = {
     openapiSchemaPath: config.openapiSchemaPath || process.env.OPENAPI_URL,
     apiBaseUrl: config.apiBaseUrl || process.env.API_BASE_URL,
+    apiBearerToken: config.apiBearerToken || CONFIG.openapi.bearerToken,
     ...config
   };
 
@@ -230,7 +270,7 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
     handler: async (args) => {
       const { path, method, params, body, headers, bearerToken } = args;
       const finalBaseUrl = defaultBaseUrl;
-      const finalBearerToken = bearerToken || process.env.API_KEY;
+      const finalBearerToken = resolveUpstreamBearerToken({ bearerToken }, headers) || defaultConfig.apiBearerToken;
 
       console.log(`🔥 Executing: ${method.toUpperCase()} ${finalBaseUrl}${path}`);
       const result = await executeRequest(finalBaseUrl, path, method, {
@@ -310,23 +350,19 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
         description: `${opDescription} (convenience wrapper for execute-request)`,
         schema: generateOperationSchema(operation, pathParams, openApiDoc),
         handler: async (args) => {
-          // Use args directly - the registration loop now extracts them correctly
-          console.error(`[🔍 DEBUG] ${toolName} called with args:`, JSON.stringify(args, null, 2));
-
           const {
             headers: extraHeaders = {},
             params: explicitParams,
             bearerToken,
             Authorization,
+            authorization,
             ...rest
           } = args;
           const finalBaseUrl = defaultBaseUrl;
-          const finalBearerToken =
-            bearerToken ||
-            (typeof Authorization === 'string' && Authorization.startsWith('Bearer ')
-              ? Authorization.slice(7)
-              : undefined) ||
-            process.env.API_KEY;
+          const finalBearerToken = resolveUpstreamBearerToken(
+            { bearerToken, Authorization, authorization },
+            extraHeaders,
+          ) || defaultConfig.apiBearerToken;
 
           // Replace path parameters
           let actualPath = path;
@@ -341,7 +377,7 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
 
           const headers = {
             'Content-Type': 'application/json',
-            ...extraHeaders
+            ...stripReservedHeaders(extraHeaders)
           };
           const contentType = headers['Content-Type'];
 

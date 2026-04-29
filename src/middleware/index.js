@@ -80,6 +80,49 @@ export const validateJsonRpc = (req, res, next) => {
   next();
 };
 
+const extractRequestToken = (req) => {
+  const authHeader = String(req.headers.authorization || '');
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+
+  const pathMatch = req.path.match(/^\/mcp\/api\/v1\/u\/([^/]+)\/sse$/);
+  if (pathMatch && pathMatch[1]) {
+    return decodeURIComponent(pathMatch[1]).trim();
+  }
+
+  return '';
+};
+
+export const authenticateRequest = (req, res, next) => {
+  if (!CONFIG.auth.requireAuth) {
+    return next();
+  }
+
+  const token = extractRequestToken(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: {
+        code: -32001,
+        message: "Unauthorized"
+      }
+    });
+  }
+
+  if (!CONFIG.auth.tokens.includes(token)) {
+    return res.status(403).json({
+      error: {
+        code: -32003,
+        message: "Forbidden"
+      }
+    });
+  }
+
+  req.mcpAuthToken = token;
+  next();
+};
+
 /**
  * Rate limiting middleware (simple implementation)
  */
@@ -128,6 +171,7 @@ export const setupMiddleware = (app) => {
   app.use(jsonParser);
   
   // Custom middleware
+  app.use(authenticateRequest);
   app.use(validateJsonRpc);
   app.use(rateLimiter(200, 60000)); // 200 requests per minute
   

@@ -31,7 +31,7 @@ cp .env.example .env
 ```bash
 export OPENAPI_URL="https://your-api.com/swagger.json"
 export API_BASE_URL="https://your-api.com/api"
-export API_TOKEN="your-bearer-token-here"
+export OPENAPI_AUTH_TOKEN="your-bearer-token-here"
 ```
 
 ## 🚀 Start the Server
@@ -140,7 +140,7 @@ npm run client
 ```bash
 export OPENAPI_URL="https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json"
 export API_BASE_URL="https://api.github.com"
-export API_TOKEN="ghp_your_token_here"
+export OPENAPI_AUTH_TOKEN="ghp_your_token_here"
 npm start
 ```
 
@@ -148,7 +148,7 @@ npm start
 ```bash
 export OPENAPI_URL="https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json"
 export API_BASE_URL="https://api.stripe.com"
-export API_TOKEN="sk_test_your_key_here"
+export OPENAPI_AUTH_TOKEN="sk_test_your_key_here"
 npm start
 ```
 
@@ -167,8 +167,8 @@ npm start
 
 ### "API calls failing"
 - Verify `API_BASE_URL` matches your API
-- Check authentication: `export API_TOKEN="your-token"`
-- Test manually: `curl -H "Authorization: Bearer $API_TOKEN" $API_BASE_URL/endpoint`
+- Check authentication: `export OPENAPI_AUTH_TOKEN="your-token"`
+- Test manually: `curl -H "Authorization: Bearer $OPENAPI_AUTH_TOKEN" $API_BASE_URL/endpoint`
 
 ### "No tools generated"
 - Check OpenAPI spec has `paths` section
@@ -178,7 +178,7 @@ npm start
 ## 📚 Next Steps
 
 1. **Customize for your API**: Update environment variables
-2. **Add authentication**: Set `API_TOKEN` for protected APIs  
+2. **Add authentication**: Set `OPENAPI_AUTH_TOKEN` for protected APIs  
 3. **Integrate with Claude**: Follow the Claude Desktop setup
 4. **Build workflows**: Combine multiple tool calls for complex tasks
 5. **Monitor usage**: Check `/health` endpoint for metrics
