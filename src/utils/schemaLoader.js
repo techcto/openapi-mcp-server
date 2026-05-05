@@ -4,6 +4,10 @@ import yaml from "js-yaml";
 import fetch from "node-fetch";
 
 const schemaCache = new Map();
+const REMOTE_SCHEMA_MAX_ATTEMPTS = Number.parseInt(process.env.OPENAPI_FETCH_RETRIES || '12', 10) || 12;
+const REMOTE_SCHEMA_RETRY_DELAY_MS = Number.parseInt(process.env.OPENAPI_FETCH_RETRY_DELAY_MS || '2000', 10) || 2000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const parseSchemaText = (text, contentType = '') => {
   if (contentType.includes('yaml') || contentType.includes('yml')) {
@@ -45,23 +49,49 @@ export const loadSchema = async (path) => {
       headers["Authorization"] = `Bearer ${process.env.API_TOKEN}`;
     }
 
-    const response = await fetch(path, { headers });
+    let lastError = null;
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Failed to load remote schema (${response.status} ${response.statusText}): ${body}`);
+    for (let attempt = 1; attempt <= REMOTE_SCHEMA_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const response = await fetch(path, { headers });
+
+        if (!response.ok) {
+          const body = await response.text();
+          const error = new Error(`Failed to load remote schema (${response.status} ${response.statusText}): ${body}`);
+          error.status = response.status;
+          throw error;
+        }
+
+        const text = await response.text();
+        const contentType = response.headers.get("content-type") || '';
+        const parsed = assertSchema(parseSchemaText(text, contentType), path);
+
+        console.log("📦 Loaded remote schema keys:", Object.keys(parsed));
+        console.log("📦 OpenAPI version:", parsed.openapi || parsed.swagger);
+        console.log("📦 Path count:", Object.keys(parsed.paths || {}).length);
+
+        schemaCache.set(path, parsed);
+        return parsed;
+      } catch (error) {
+        lastError = error;
+        const status = Number(error?.status || 0);
+        const isRetryable =
+          status === 0 ||
+          status === 408 ||
+          status === 425 ||
+          status === 429 ||
+          status >= 500;
+
+        if (!isRetryable || attempt === REMOTE_SCHEMA_MAX_ATTEMPTS) {
+          break;
+        }
+
+        console.warn(`⏳ Remote schema load attempt ${attempt}/${REMOTE_SCHEMA_MAX_ATTEMPTS} failed; retrying in ${REMOTE_SCHEMA_RETRY_DELAY_MS}ms`);
+        await sleep(REMOTE_SCHEMA_RETRY_DELAY_MS);
+      }
     }
 
-    const text = await response.text();
-    const contentType = response.headers.get("content-type") || '';
-    const parsed = assertSchema(parseSchemaText(text, contentType), path);
-
-    console.log("📦 Loaded remote schema keys:", Object.keys(parsed));
-    console.log("📦 OpenAPI version:", parsed.openapi || parsed.swagger);
-    console.log("📦 Path count:", Object.keys(parsed.paths || {}).length);
-
-    schemaCache.set(path, parsed);
-    return parsed;
+    throw lastError || new Error(`Failed to load remote schema from ${path}`);
   }
 
   // Fallback: local path

@@ -27,6 +27,14 @@ export API_BASE_URL="https://petstore.swagger.io/v2"
 npm start
 ```
 
+## Commit Requirements
+
+This repo's Docker and CI flows expect both `package.json` and `package-lock.json` to be present in the build context.
+
+- Commit `package-lock.json` whenever dependencies change.
+- Do not ignore the lockfile in Git.
+- If Docker reports `COPY package.json package-lock.json ./: "/package-lock.json": not found`, the usual cause is that the lockfile exists only in a local working tree and was not committed into the submodule revision being built.
+
 Server endpoints:
 
 - `GET /` info
@@ -230,6 +238,12 @@ And always:
 npm test
 npm run test:mcp
 ```
+
+## Release Checklist
+
+- Verify `package-lock.json` is tracked before tagging a release.
+- Check that example tokens in docs and tests are placeholders, not live credentials.
+- Build the image from the repo root or from the submodule root with the lockfile included in the Docker context.
 
 ## Recommended Product Use
 
