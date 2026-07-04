@@ -77,6 +77,15 @@ export OPENAPI_AUTH_TOKEN="wp-api-token"
 npm start
 ```
 
+Example: Xquik
+
+```bash
+export OPENAPI_URL="https://xquik.com/openapi.json"
+export API_BASE_URL="https://xquik.com"
+export OPENAPI_AUTH_TOKEN="your-xquik-api-key"
+npm start
+```
+
 ### 2. Protect the MCP server itself
 
 If you want Osirus, OpenAI tools, Claude, or another client to authenticate to this MCP server, set one or more MCP auth tokens:
