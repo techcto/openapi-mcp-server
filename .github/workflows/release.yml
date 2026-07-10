@@ -40,10 +40,10 @@ jobs:
         run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${{ env.MP_AWS_ECR }}"
 
       - name: Build image
-        run: docker build --tag "${{ env.MP_AWS_ECR }}/solodev/cms-mcp:${{ steps.version.outputs.value }}" .
+        run: docker build --tag "${{ env.MP_AWS_ECR }}/solodev/openapi-mcp:${{ steps.version.outputs.value }}" .
 
       - name: Push image
-        run: docker push "${{ env.MP_AWS_ECR }}/solodev/cms-mcp:${{ steps.version.outputs.value }}"
+        run: docker push "${{ env.MP_AWS_ECR }}/solodev/openapi-mcp:${{ steps.version.outputs.value }}"
 
       - name: Prepare Marketplace changeset
         run: |

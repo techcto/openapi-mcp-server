@@ -1,10 +1,11 @@
 PRODUCT_ID="prod-hzj224hmwq77w";
 
-# OpenAPI MCP (ECR repo solodev/cms-mcp -- named before the OpenAPI MCP
-# rebrand, and ECR repos can't be renamed in place, so the repo/image path
-# stays cms-mcp) was created through the console as product type
-# "Container", with "Container image" selected as the delivery method for
-# Bedrock AgentCore Runtime. Entity.Type stays ContainerProduct@1.0.
+# OpenAPI MCP was created through the console as product type "Container",
+# with "Container image" selected as the delivery method for Bedrock
+# AgentCore Runtime. Entity.Type stays ContainerProduct@1.0. ECR repo is
+# solodev/openapi-mcp -- a *new* repo, since the original solodev/cms-mcp
+# repo (used during early testing, still holding test tags like 11.9.25)
+# can't be renamed in place.
 #
 # The Details wrapper key is EcrDeliveryOptionDetails -- confirmed directly
 # from a StartChangeSet ValidationException, which listed the only three
@@ -32,7 +33,7 @@ DETAILS_JSON='{
          "Details":{
             "EcrDeliveryOptionDetails":{
                "ContainerImages":[
-                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/cms-mcp:{RELEASE_VERSION}"
+                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
                ],
                "CompatibleServices":[
                   "Bedrock-AgentCore"
