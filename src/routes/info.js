@@ -46,4 +46,9 @@ export const setupInfo = (app, toolMap) => {
       activeConnections: connectionManager.getConnectionCount?.() ?? "n/a"
     });
   });
+
+  // Bedrock AgentCore Runtime health check contract: GET /ping -> {"status": "Healthy"}
+  app.get("/ping", (req, res) => {
+    res.json({ status: "Healthy" });
+  });
 };

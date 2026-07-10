@@ -39,6 +39,7 @@ Server endpoints:
 
 - `GET /` info
 - `GET /health`
+- `GET /ping`
 - `POST /mcp`
 - `GET /sse`
 - `GET /mcp/api/v1/u/:token/sse`
@@ -244,6 +245,29 @@ npm run test:mcp
 - Verify `package-lock.json` is tracked before tagging a release.
 - Check that example tokens in docs and tests are placeholders, not live credentials.
 - Build the image from the repo root or from the submodule root with the lockfile included in the Docker context.
+
+## Amazon Bedrock AgentCore Runtime
+
+This server satisfies Amazon Bedrock AgentCore Runtime's MCP server contract:
+
+- Listens on `0.0.0.0:8000` (the defaults for `HOST`/`PORT` already match this)
+- `POST /mcp` runs the streamable-HTTP transport in stateless mode (`sessionIdGenerator: undefined`), so it doesn't reject the `Mcp-Session-Id` header AgentCore injects on every request
+- `GET /ping` returns `{"status": "Healthy"}` for AgentCore's health checks
+- The container image must be built for `linux/arm64` -- AgentCore Runtime only runs ARM64 containers
+
+Test locally the same way AgentCore does before deploying:
+
+```bash
+docker run -p 8000:8000 <your-image>
+
+curl http://localhost:8000/ping
+
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
+
+Reference: [Amazon Bedrock AgentCore Runtime for AWS Marketplace](https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html), [MCP protocol contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp-protocol-contract.html).
 
 ## Recommended Product Use
 
