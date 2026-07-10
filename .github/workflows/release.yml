@@ -1,0 +1,54 @@
+name: Release to AWS Marketplace
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version to build/push (no leading v)"
+        required: true
+
+env:
+  MP_AWS_ECR: 709825985650.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.release_version }}" ]; then
+            echo "value=${{ github.event.inputs.release_version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.MP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${{ env.MP_AWS_ECR }}"
+
+      - name: Build image
+        run: docker build --tag "${{ env.MP_AWS_ECR }}/solodev/cms-mcp:${{ steps.version.outputs.value }}" .
+
+      - name: Push image
+        run: docker push "${{ env.MP_AWS_ECR }}/solodev/cms-mcp:${{ steps.version.outputs.value }}"
+
+      - name: Prepare Marketplace changeset
+        run: |
+          cp devops/changeset.sh.dst devops/changeset.sh
+          sed -i "s/{RELEASE_VERSION}/${{ steps.version.outputs.value }}/g" devops/changeset.sh
+
+      - name: Submit AWS Marketplace changeset
+        run: bash devops/changeset.sh

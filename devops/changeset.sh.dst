@@ -1,0 +1,78 @@
+PRODUCT_ID="prod-hzj224hmwq77w";
+
+# OpenAPI MCP (ECR repo solodev/cms-mcp -- named before the OpenAPI MCP
+# rebrand, and ECR repos can't be renamed in place, so the repo/image path
+# stays cms-mcp) was created through the console as product type
+# "Container", with "Container image" selected as the delivery method for
+# Bedrock AgentCore Runtime. Entity.Type stays ContainerProduct@1.0.
+#
+# The Details wrapper key is EcrDeliveryOptionDetails -- confirmed directly
+# from a StartChangeSet ValidationException, which listed the only three
+# allowed keys for this entity type: EcrDeliveryOptionDetails (this one),
+# HelmDeliveryOptionDetails, and EksAddOnDeliveryOptionDetails.
+# CompatibleServices/"Bedrock-AgentCore" and the existence of a per-agent
+# Type field (AI Agent / MCP Server / A2A Server) are confirmed from AWS's
+# own docs. AgenticType being an array (not a string) is confirmed directly
+# from a StartChangeSet ValidationException. The literal enum spelling
+# "MCP_SERVER" and the EnvironmentVariables entry shape (Key/Description,
+# matching the console's "Variable key"/"Description"/"Default value"
+# columns) are still our best-informed guess, not verified verbatim.
+# Environment variable descriptions are intentionally generic (no Solodev
+# CMS-specific wording) since OpenAPI MCP works against any OpenAPI/Swagger
+# API, not just Solodev CMS.
+
+DETAILS_JSON='{
+   "Version":{
+      "VersionTitle":"{RELEASE_VERSION}",
+      "ReleaseNotes":"{RELEASE_VERSION} Version"
+   },
+   "DeliveryOptions":[
+      {
+         "DeliveryOptionTitle":"Container image",
+         "Details":{
+            "EcrDeliveryOptionDetails":{
+               "ContainerImages":[
+                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/cms-mcp:{RELEASE_VERSION}"
+               ],
+               "CompatibleServices":[
+                  "Bedrock-AgentCore"
+               ],
+               "AgenticType":[
+                  "MCP_SERVER"
+               ],
+               "Description":"Deploy OpenAPI MCP as a container image on Amazon Bedrock AgentCore Runtime",
+               "UsageInstructions":"For step-by-step instructions on configuring OpenAPI MCP against your target API, please visit the following URL: https://cms.solodev.net/quickstart/openapi-mcp/",
+               "EnvironmentVariables":[
+                  {
+                     "Key":"OPENAPI_URL",
+                     "Description":"URL to the target API OpenAPI/Swagger specification that this MCP server should expose as tools."
+                  },
+                  {
+                     "Key":"API_BASE_URL",
+                     "Description":"Base URL of the target API that generated tools should call."
+                  },
+                  {
+                     "Key":"OPENAPI_AUTH_TOKEN",
+                     "Description":"Bearer token used when calling protected endpoints on the target API (the same token used for that API authenticated requests)."
+                  }
+               ]
+            }
+         }
+      }
+   ]
+}';
+
+DETAILS_JSON_STRING="$(echo "${DETAILS_JSON}" | jq 'tostring';)";
+
+echo "${DETAILS_JSON_STRING}"
+
+aws marketplace-catalog start-change-set --catalog "AWSMarketplace" --change-set '[
+  {
+    "ChangeType": "AddDeliveryOptions",
+    "Entity": {
+      "Identifier": "'"${PRODUCT_ID}"'",
+      "Type": "ContainerProduct@1.0"
+    },
+    "Details": '"${DETAILS_JSON_STRING}"'
+  }
+]';
