@@ -19,7 +19,8 @@ const port = Number.parseInt(process.env.PORT || '8000', 10) || 8000;
 const host = process.env.HOST || '0.0.0.0';
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || `http://localhost:${port}`).replace(/\/+$/, '');
 const authTokens = parseCsv(process.env.MCP_AUTH_TOKENS || process.env.MCP_AUTH_TOKEN || process.env.API_TOKEN);
-const requireAuth = parseBoolean(process.env.REQUIRE_AUTH, authTokens.length > 0);
+const sigv4AllowedArns = parseCsv(process.env.SIGV4_ALLOWED_ARNS);
+const requireAuth = parseBoolean(process.env.REQUIRE_AUTH, authTokens.length > 0 || sigv4AllowedArns.length > 0);
 const allowedToolNames = parseCsv(process.env.MCP_ALLOWED_TOOLS);
 const upstreamBearerToken =
   process.env.API_BEARER_TOKEN ||
@@ -41,6 +42,10 @@ export const CONFIG = {
   auth: {
     requireAuth,
     tokens: authTokens,
+    // IAM identities allowed to authenticate via presigned sts:GetCallerIdentity
+    // tokens (see src/utils/sigv4Auth.js) instead of a bearer token. Supports
+    // exact ARNs or "arn:aws:iam::*:role/prefix*" style wildcards.
+    sigv4AllowedArns,
   },
 
   tools: {

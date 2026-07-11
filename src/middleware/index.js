@@ -2,6 +2,7 @@ import morgan from "morgan";
 import cors from "cors";
 import express from "express";
 import { CONFIG } from '../config/config.js';
+import { verifySigv4Token, SIGV4_TOKEN_PREFIX } from '../utils/sigv4Auth.js';
 
 /**
  * Error handling middleware
@@ -94,7 +95,7 @@ const extractRequestToken = (req) => {
   return '';
 };
 
-export const authenticateRequest = (req, res, next) => {
+export const authenticateRequest = async (req, res, next) => {
   if (!CONFIG.auth.requireAuth) {
     return next();
   }
@@ -110,17 +111,26 @@ export const authenticateRequest = (req, res, next) => {
     });
   }
 
-  if (!CONFIG.auth.tokens.includes(token)) {
-    return res.status(403).json({
-      error: {
-        code: -32003,
-        message: "Forbidden"
-      }
-    });
+  if (CONFIG.auth.tokens.includes(token)) {
+    req.mcpAuthToken = token;
+    return next();
   }
 
-  req.mcpAuthToken = token;
-  next();
+  if (token.startsWith(SIGV4_TOKEN_PREFIX) && CONFIG.auth.sigv4AllowedArns.length > 0) {
+    const callerArn = await verifySigv4Token(token, CONFIG.auth.sigv4AllowedArns);
+    if (callerArn) {
+      req.mcpAuthToken = token;
+      req.mcpAuthArn = callerArn;
+      return next();
+    }
+  }
+
+  return res.status(403).json({
+    error: {
+      code: -32003,
+      message: "Forbidden"
+    }
+  });
 };
 
 /**
