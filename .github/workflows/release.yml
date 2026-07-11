@@ -49,12 +49,20 @@ jobs:
       # via a real ValidationException, not docs) -- ubuntu-latest runners are
       # x86_64, so this cross-builds via QEMU emulation rather than assuming a
       # native ARM64 runner is available.
+      # provenance/sbom disabled: Buildx attaches these as extra attestation
+      # manifests by default, turning the push into a multi-manifest OCI
+      # image index. AWS Marketplace's scanner can't read that shape and
+      # rejects the image with "UnsupportedImageType" -- confirmed by a real
+      # failure after switching from plain `docker build`/`docker push` to
+      # this action. Plain single-manifest push is what Marketplace expects.
       - name: Build and push image (linux/arm64)
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ env.MP_AWS_ECR }}/solodev/openapi-mcp:${{ steps.version.outputs.value }}
 
       - name: Prepare Marketplace changeset
