@@ -22,7 +22,10 @@ PRODUCT_ID="prod-hzj224hmwq77w";
 # rejected.
 # Environment variable descriptions are intentionally generic (no Solodev
 # CMS-specific wording) since OpenAPI MCP works against any OpenAPI/Swagger
-# API, not just Solodev CMS.
+# API, not just Solodev CMS. MCP_ALLOWED_TOOLS uses the same confirmed
+# Name/Description shape as the other three entries -- not independently
+# re-verified against a live StartChangeSet call, but low risk given it's
+# the identical shape.
 
 DETAILS_JSON='{
    "Version":{
@@ -57,6 +60,10 @@ DETAILS_JSON='{
                   {
                      "Name":"OPENAPI_AUTH_TOKEN",
                      "Description":"Bearer token used when calling protected endpoints on the target API (the same token used for that API authenticated requests)."
+                  },
+                  {
+                     "Name":"MCP_ALLOWED_TOOLS",
+                     "Description":"Optional comma-separated allowlist of tool names to expose. Leave blank to expose every tool generated from the OpenAPI spec."
                   }
                ]
             }

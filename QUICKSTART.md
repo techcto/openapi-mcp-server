@@ -47,6 +47,19 @@ You'll see output like:
 🔗 Server info: http://localhost:8000
 ```
 
+### 🐳 Or with Docker Compose
+
+Same result, no local Node install needed:
+
+```bash
+cp .env.example .env
+# edit .env with your OPENAPI_URL / API_BASE_URL / OPENAPI_AUTH_TOKEN
+
+docker compose up --build
+```
+
+This builds the same image used for AWS Marketplace / Bedrock AgentCore Runtime, so anything working here will work identically there.
+
 ## 🧪 Test It Works
 
 ```bash
@@ -186,6 +199,7 @@ npm start
 ## 🎓 Learn More
 
 - **Full documentation**: [README.md](./README.md)
+- **Deploying to AWS Marketplace / Bedrock AgentCore Runtime**: [docs/marketplace-quickstart.md](./docs/marketplace-quickstart.md)
 - **API examples**: [/samples](./samples/) directory
 - **Test different configs**: `TEST_CONFIG=cms npm run test:client`
 - **Explore tools**: Visit `http://localhost:8000` for API documentation
