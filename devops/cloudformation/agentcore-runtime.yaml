@@ -1,0 +1,336 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  OpenAPI MCP -- Amazon Bedrock AgentCore Runtime stack.
+  Provisions an AgentCore Runtime pointed at the OpenAPI MCP container image,
+  configured against a target API's OpenAPI/Swagger spec. There is no native
+  CloudFormation resource type for AgentCore runtimes yet, so this stack uses
+  a Lambda-backed custom resource to call bedrock-agentcore-control directly
+  (same technique used by other AgentCore-provisioning stacks).
+  NAMING: The stack name is used as the base for the runtime name and IAM
+  role names. Use lowercase letters, numbers, and hyphens only.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Container Image
+        Parameters:
+          - ContainerImageUri
+      - Label:
+          default: Target API
+        Parameters:
+          - OpenApiUrl
+          - ApiBaseUrl
+          - OpenApiAuthToken
+      - Label:
+          default: MCP Server Options (optional)
+        Parameters:
+          - McpAuthToken
+          - AllowedTools
+
+    ParameterLabels:
+      ContainerImageUri:  { default: Container Image URI }
+      OpenApiUrl:         { default: OpenAPI/Swagger URL }
+      ApiBaseUrl:         { default: API Base URL }
+      OpenApiAuthToken:   { default: Target API Bearer Token }
+      McpAuthToken:       { default: MCP Server Bearer Token }
+      AllowedTools:       { default: Allowed Tools (comma-separated) }
+
+Parameters:
+
+  # ── Container image ────────────────────────────────────────────────────────
+  ContainerImageUri:
+    Type: String
+    Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:latest
+    Description: >
+      ECR image URI for OpenAPI MCP, including tag. Must be pushed to an ECR
+      repository the AgentCore execution role can pull from.
+
+  # ── Target API ─────────────────────────────────────────────────────────────
+  OpenApiUrl:
+    Type: String
+    Description: >
+      URL to the target API's OpenAPI/Swagger specification that this MCP
+      server should expose as tools. Example: https://your-api.example.com/openapi.json
+
+  ApiBaseUrl:
+    Type: String
+    Description: >
+      Base URL of the target API that generated tools should call.
+      Example: https://your-api.example.com
+
+  OpenApiAuthToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: >
+      Optional. Bearer token used when calling protected endpoints on the
+      target API.
+
+  # ── MCP server options ─────────────────────────────────────────────────────
+  McpAuthToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: >
+      Optional. Bearer token required of MCP clients calling this server
+      directly (outside of AgentCore Runtime's own access controls). Leave
+      blank to rely solely on AgentCore Runtime's own inbound auth.
+
+  AllowedTools:
+    Type: String
+    Default: ''
+    Description: >
+      Optional. Comma-separated allowlist of tool names to expose. Leave
+      blank to expose every tool generated from the OpenAPI spec.
+
+Conditions:
+  HasOpenApiAuthToken: !Not [!Equals [!Ref OpenApiAuthToken, '']]
+  HasMcpAuthToken:     !Not [!Equals [!Ref McpAuthToken, '']]
+  HasAllowedTools:     !Not [!Equals [!Ref AllowedTools, '']]
+
+Resources:
+
+  # ── Execution role (assumed by the AgentCore runtime process) ──────────────
+  AgentCoreExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-exec-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: OpenApiMcpExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: EcrPull
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                Resource: '*'
+              - Sid: EcrAuth
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/*'
+
+  # ── Scoped IAM user + key for external callers (e.g. Osirus) to invoke this
+  # runtime directly -- same pattern as provider-agentcore.yaml's OsirusUser,
+  # scoped tighter (just invoke, not full runtime management) and to just
+  # this stack's runtime ARN rather than '*'.
+  McpInvokerUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${AWS::StackName}-mcp-invoker'
+      Policies:
+        - PolicyName: InvokeOpenApiMcpRuntime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AgentCoreInvoke
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeAgentRuntime
+                  - bedrock-agentcore:GetAgentCard
+                Resource: !GetAtt AgentCoreRuntime.RuntimeArn
+
+  McpInvokerAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref McpInvokerUser
+
+  # ── Lambda execution role (for the custom resource) ────────────────────────
+  RuntimeProvisionerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-provisioner-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AgentCoreRuntimeManagement
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock-agentcore:CreateAgentRuntime
+                  - bedrock-agentcore:UpdateAgentRuntime
+                  - bedrock-agentcore:DeleteAgentRuntime
+                  - bedrock-agentcore:GetAgentRuntime
+                Resource: '*'
+              - Effect: Allow
+                Action: ['iam:PassRole']
+                Resource: !GetAtt AgentCoreExecutionRole.Arn
+              - Effect: Allow
+                Action: ['iam:CreateServiceLinkedRole']
+                Resource: '*'
+
+  # ── Lambda that creates / updates / deletes the AgentCore runtime ──────────
+  RuntimeProvisionerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-provisioner'
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 300
+      Role: !GetAtt RuntimeProvisionerRole.Arn
+      Code:
+        ZipFile: |
+          import boto3, json, urllib.request
+
+          SUCCESS = 'SUCCESS'
+          FAILED  = 'FAILED'
+
+          def send(event, ctx, status, data, physical_id=None):
+              body = json.dumps({
+                  'Status': status,
+                  'Reason': data.get('Error', 'See CloudWatch logs'),
+                  'PhysicalResourceId': physical_id or ctx.log_stream_name,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': data,
+              }).encode()
+              req = urllib.request.Request(
+                  event['ResponseURL'],
+                  data=body,
+                  headers={'Content-Type': '', 'Content-Length': len(body)},
+                  method='PUT',
+              )
+              urllib.request.urlopen(req)
+
+          def handler(event, ctx):
+              props        = event.get('ResourceProperties', {})
+              region       = props.get('Region')
+              role_arn     = props.get('RoleArn')
+              container_uri = props.get('ContainerUri')
+              name         = props.get('AgentName')
+              desc         = props.get('AgentDescription', '')
+              env_vars     = props.get('EnvironmentVariables', {})
+              runtime_name = name.replace('-', '_')
+
+              try:
+                  # Ensure the AgentCore service-linked role exists before calling CreateAgentRuntime
+                  iam = boto3.client('iam')
+                  try:
+                      iam.create_service_linked_role(AWSServiceName='bedrock-agentcore.amazonaws.com')
+                  except Exception:
+                      pass  # already exists -- safe to ignore
+
+                  client = boto3.client('bedrock-agentcore-control', region_name=region)
+                  runtime_artifact = {
+                      'containerConfiguration': {
+                          'containerUri': container_uri,
+                      },
+                  }
+                  protocol_configuration = {'serverProtocol': 'MCP'}
+
+                  if event['RequestType'] == 'Create':
+                      resp = client.create_agent_runtime(
+                          agentRuntimeName=runtime_name,
+                          description=desc,
+                          roleArn=role_arn,
+                          networkConfiguration={
+                              'networkMode': 'PUBLIC',
+                          },
+                          agentRuntimeArtifact=runtime_artifact,
+                          protocolConfiguration=protocol_configuration,
+                          environmentVariables=env_vars,
+                      )
+                      arn = resp.get('agentRuntimeArn') or resp.get('AgentRuntimeArn', '')
+                      send(event, ctx, SUCCESS, {'RuntimeArn': arn, 'RuntimeId': arn.split('/')[-1]}, arn)
+
+                  elif event['RequestType'] == 'Update':
+                      physical = event.get('PhysicalResourceId', '')
+                      runtime_id = physical.split('/')[-1] if physical else ''
+                      if not runtime_id:
+                          raise Exception('Missing AgentCore runtime physical resource id for update')
+                      resp = client.update_agent_runtime(
+                          agentRuntimeId=runtime_id,
+                          description=desc,
+                          roleArn=role_arn,
+                          networkConfiguration={
+                              'networkMode': 'PUBLIC',
+                          },
+                          agentRuntimeArtifact=runtime_artifact,
+                          protocolConfiguration=protocol_configuration,
+                          environmentVariables=env_vars,
+                      )
+                      arn = resp.get('agentRuntimeArn') or resp.get('AgentRuntimeArn') or physical
+                      send(event, ctx, SUCCESS, {'RuntimeArn': arn, 'RuntimeId': runtime_id}, arn)
+
+                  elif event['RequestType'] == 'Delete':
+                      physical = event.get('PhysicalResourceId', '')
+                      if physical and 'bedrock-agentcore' in physical:
+                          runtime_id = physical.split('/')[-1]
+                          try:
+                              client.delete_agent_runtime(agentRuntimeId=runtime_id)
+                          except Exception:
+                              pass
+                      send(event, ctx, SUCCESS, {}, physical)
+
+              except Exception as exc:
+                  send(event, ctx, FAILED, {'Error': str(exc)})
+
+  # ── Custom resource -- triggers the Lambda to create the runtime ───────────
+  AgentCoreRuntime:
+    Type: Custom::AgentCoreRuntime
+    DependsOn: AgentCoreExecutionRole
+    Properties:
+      ServiceToken: !GetAtt RuntimeProvisionerFunction.Arn
+      Region: !Ref AWS::Region
+      RoleArn: !GetAtt AgentCoreExecutionRole.Arn
+      ContainerUri: !Ref ContainerImageUri
+      AgentName: !Ref AWS::StackName
+      AgentDescription: OpenAPI MCP -- Model Context Protocol server for the configured target API
+      EnvironmentVariables:
+        OPENAPI_URL: !Ref OpenApiUrl
+        API_BASE_URL: !Ref ApiBaseUrl
+        OPENAPI_AUTH_TOKEN: !If [HasOpenApiAuthToken, !Ref OpenApiAuthToken, !Ref 'AWS::NoValue']
+        MCP_AUTH_TOKEN: !If [HasMcpAuthToken, !Ref McpAuthToken, !Ref 'AWS::NoValue']
+        MCP_ALLOWED_TOOLS: !If [HasAllowedTools, !Ref AllowedTools, !Ref 'AWS::NoValue']
+        REQUIRE_AUTH: !If [HasMcpAuthToken, 'true', 'false']
+
+Outputs:
+
+  RuntimeArn:
+    Description: AgentCore Runtime ARN -- paste into the Osirus OpenAPI MCP provider connection (or any other MCP client's Runtime ARN field).
+    Value: !GetAtt AgentCoreRuntime.RuntimeArn
+
+  AccessKeyId:
+    Description: AWS Access Key ID for invoking this runtime -- paste into the Osirus OpenAPI MCP provider connection.
+    Value: !Ref McpInvokerAccessKey
+
+  SecretAccessKey:
+    Description: AWS Secret Access Key for invoking this runtime -- paste into the Osirus OpenAPI MCP provider connection.
+    Value: !GetAtt McpInvokerAccessKey.SecretAccessKey
+
+  Region:
+    Description: AWS Region.
+    Value: !Ref AWS::Region
+
+  ExecutionRoleArn:
+    Description: IAM role assumed by the AgentCore runtime process.
+    Value: !GetAtt AgentCoreExecutionRole.Arn
