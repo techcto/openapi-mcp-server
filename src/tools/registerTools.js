@@ -1,6 +1,7 @@
 import yaml from "js-yaml";
 import { z } from "zod";
 import { wrapTool } from "./wrapTool.js";
+import { isToolAllowed } from "../config/config.js";
 
 const toYaml = (obj) => yaml.dump(obj, { lineWidth: 100, noRefs: true });
 
@@ -282,6 +283,7 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
   let registeredCount = 0;
   for (const tool of tools) {
     const { name, description, schema, handler } = tool;
+    if (!isToolAllowed(name)) continue;
     toolMap.set(name, tool);
     registeredCount++;
 
@@ -322,6 +324,8 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
   }
 
   // Register the prompts-list tool
+  if (isToolAllowed("prompts-list")) {
+  registeredCount++;
   server.tool(
     "prompts-list",
     "Suggests useful prompts for this OpenAPI schema",
@@ -405,8 +409,11 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
       }
     }
   );
+  }
 
   // Register debug-params tool
+  if (isToolAllowed("debug-params")) {
+  registeredCount++;
   server.tool(
     "debug-params",
     "Debug what parameters are actually received",
@@ -438,7 +445,8 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
       };
     }
   );
+  }
 
-  console.log(`✅ Registered ${tools.length + 2} schema tools successfully!`); // +2 for prompts-list and debug-params
+  console.log(`✅ Registered ${registeredCount} schema tools successfully!`);
   return { toolMap, config: defaultConfig };
 }

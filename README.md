@@ -235,6 +235,12 @@ Who's allowed to call this runtime at all, gated entirely by AWS IAM -- see [Ama
 | `SERVER_DESCRIPTION` | Optional display description |
 | `CORS_ORIGIN` | Optional CORS origin override |
 
+### Large APIs (100+ endpoints)
+
+Foundation models don't do well with hundreds of tools in a single `toolConfig` -- accuracy drops and some providers hard-cap the count. A full CMS-scale OpenAPI spec can generate 500+ execution tools if left unfiltered.
+
+**Set `MCP_ALLOWED_TOOLS` to a curated shortlist for any API this large.** This isn't just about trimming what the model sees -- disallowed tools are skipped *before* their schemas are even generated, so an unfiltered large spec also means unnecessary CPU/memory work on every cold start. Both the schema tools (`registerTools.js`) and the generated execution tools (`registerActions.js`) honor the allowlist at generation time, so it applies uniformly across every transport, including the native `/mcp` endpoint AgentCore Runtime calls.
+
 ## Tool Types
 
 ### Schema tools

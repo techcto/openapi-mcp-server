@@ -2,7 +2,7 @@ import yaml from "js-yaml";
 import { z } from "zod";
 import { wrapTool } from "./wrapTool.js";
 import { logger } from "../utils/logger.js";
-import { CONFIG } from "../config/config.js";
+import { CONFIG, isToolAllowed } from "../config/config.js";
 
 const toYaml = (obj) => yaml.dump(obj, { lineWidth: 100, noRefs: true });
 
@@ -257,31 +257,33 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
   const executionTools = [];
 
   // Add a generic execute-request tool (the core engine)
-  executionTools.push(wrapTool({
-    name: "execute-request",
-    description: "Execute any HTTP request to the API. Use this for exploring or custom requests.",
-    schema: z.object({
-      path: z.string().describe("API path (e.g., /asset_category or /asset_category/123)"),
-      method: z.string().describe("HTTP method: GET, POST, PUT, DELETE"),
-      params: z.record(z.any()).optional().describe("Query parameters for GET requests"),
-      body: z.record(z.any()).optional().describe("Form data for POST/PUT requests"),
-      headers: z.record(z.string()).optional().describe("Additional HTTP headers")
-    }).passthrough(), // Allow additional properties like bearerToken
-    handler: async (args) => {
-      const { path, method, params, body, headers, bearerToken } = args;
-      const finalBaseUrl = defaultBaseUrl;
-      const finalBearerToken = resolveUpstreamBearerToken({ bearerToken }, headers) || defaultConfig.apiBearerToken;
+  if (isToolAllowed("execute-request")) {
+    executionTools.push(wrapTool({
+      name: "execute-request",
+      description: "Execute any HTTP request to the API. Use this for exploring or custom requests.",
+      schema: z.object({
+        path: z.string().describe("API path (e.g., /asset_category or /asset_category/123)"),
+        method: z.string().describe("HTTP method: GET, POST, PUT, DELETE"),
+        params: z.record(z.any()).optional().describe("Query parameters for GET requests"),
+        body: z.record(z.any()).optional().describe("Form data for POST/PUT requests"),
+        headers: z.record(z.string()).optional().describe("Additional HTTP headers")
+      }).passthrough(), // Allow additional properties like bearerToken
+      handler: async (args) => {
+        const { path, method, params, body, headers, bearerToken } = args;
+        const finalBaseUrl = defaultBaseUrl;
+        const finalBearerToken = resolveUpstreamBearerToken({ bearerToken }, headers) || defaultConfig.apiBearerToken;
 
-      console.log(`🔥 Executing: ${method.toUpperCase()} ${finalBaseUrl}${path}`);
-      const result = await executeRequest(finalBaseUrl, path, method, {
-        params: method.toLowerCase() === 'get' ? params : undefined,
-        body: method.toLowerCase() !== 'get' ? body : undefined,
-        bearerToken: finalBearerToken,
-        headers
-      });
-      return { content: [{ type: "text", text: toYaml(result) }] };
-    }
-  }));
+        console.log(`🔥 Executing: ${method.toUpperCase()} ${finalBaseUrl}${path}`);
+        const result = await executeRequest(finalBaseUrl, path, method, {
+          params: method.toLowerCase() === 'get' ? params : undefined,
+          body: method.toLowerCase() !== 'get' ? body : undefined,
+          bearerToken: finalBearerToken,
+          headers
+        });
+        return { content: [{ type: "text", text: toYaml(result) }] };
+      }
+    }));
+  }
 
   const totalPaths = Object.keys(openApiDoc.paths || {}).length;
   console.log(`🔄 Generating tools for ${totalPaths} API paths...`);
@@ -335,6 +337,17 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
       }
 
       generatedToolNames.add(toolName);
+
+      // Skip disallowed tools BEFORE the expensive schema-generation work below --
+      // APIs with hundreds of endpoints (e.g. a full CMS) would otherwise build and
+      // register every single one regardless of MCP_ALLOWED_TOOLS, burning memory
+      // and (more importantly) still exposing all of them via the real /mcp
+      // endpoint, since that's served straight from the MCP SDK's own tool
+      // registry, not from the allowlist-filtered toolMap used by legacy routes.
+      if (!isToolAllowed(toolName)) {
+        continue;
+      }
+
       toolsGenerated++;
 
       // Progress indicator every 20 tools instead of logging each one
