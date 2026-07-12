@@ -113,3 +113,17 @@ jobs:
         run: |
           aws s3 cp openapi-mcp.zip "s3://openapi-mcp/openapi-mcp-${{ steps.version.outputs.value }}.zip"
           aws s3 cp openapi-mcp.zip "s3://openapi-mcp/openapi-mcp-latest.zip"
+
+      # Public read is required here (unlike the zip above): AWS CloudFormation's
+      # "Create Stack" console page fetches templateURL directly from the
+      # customer's own browser, cross-account, with no credentials at all -- so
+      # this object has to be fetchable over plain HTTPS the same way
+      # osirusai's own CFTs are (see osirus-ai's devops/bin/deploy-cft.sh).
+      # If the bucket has S3 Object Ownership set to "Bucket owner enforced",
+      # ACLs are disabled and this will fail -- add a bucket policy granting
+      # public s3:GetObject on cloudformation/* instead.
+      - name: Upload OpenAPI MCP CFT to S3
+        run: |
+          aws s3 cp devops/cloudformation/agentcore-runtime.yaml \
+            "s3://openapi-mcp/cloudformation/agentcore-runtime.yaml" \
+            --acl public-read
