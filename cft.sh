@@ -5,8 +5,26 @@ args=("$@")
 STACK_NAME="${STACK_NAME:-openapi-mcp-test}"
 TEMPLATE="devops/cloudformation/agentcore-runtime.yaml"
 
+release_version(){
+    if [ -n "${OPENAPI_MCP_RELEASE_VERSION:-}" ]; then
+        echo "${OPENAPI_MCP_RELEASE_VERSION#v}"
+        return
+    fi
+
+    local tag
+    tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+    if [ -n "${tag}" ]; then
+        echo "${tag#v}"
+        return
+    fi
+
+    node -p "require('./package.json').version"
+}
+
 deploy(){
-    local image_uri="${args[1]:-709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:0.0.2}"
+    local version
+    version="$(release_version)"
+    local image_uri="${args[1]:-709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${version}}"
     local openapi_url="${args[2]:-https://petstore.swagger.io/v2/swagger.json}"
     local api_base_url="${args[3]:-https://petstore.swagger.io/v2}"
 

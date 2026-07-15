@@ -41,7 +41,7 @@ Parameters:
   # ── Container image ────────────────────────────────────────────────────────
   ContainerImageUri:
     Type: String
-    Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:latest
+    Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}
     Description: >
       ECR image URI for OpenAPI MCP, including tag. Must be pushed to an ECR
       repository the AgentCore execution role can pull from.
@@ -183,6 +183,9 @@ Resources:
                   - bedrock-agentcore:UpdateAgentRuntimeEndpoint
                   - bedrock-agentcore:DeleteAgentRuntimeEndpoint
                   - bedrock-agentcore:GetAgentRuntimeEndpoint
+                  - bedrock-agentcore:CreateWorkloadIdentity
+                  - bedrock-agentcore:DeleteWorkloadIdentity
+                  - bedrock-agentcore:GetWorkloadIdentity
                 Resource: '*'
               - Effect: Allow
                 Action: ['iam:PassRole']

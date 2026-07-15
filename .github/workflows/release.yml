@@ -124,6 +124,8 @@ jobs:
       # public s3:GetObject on cloudformation/* instead.
       - name: Upload OpenAPI MCP CFT to S3
         run: |
-          aws s3 cp devops/cloudformation/agentcore-runtime.yaml \
+          cp devops/cloudformation/agentcore-runtime.yaml /tmp/agentcore-runtime.yaml
+          sed -i "s/{RELEASE_VERSION}/${{ steps.version.outputs.value }}/g" /tmp/agentcore-runtime.yaml
+          aws s3 cp /tmp/agentcore-runtime.yaml \
             "s3://openapi-mcp/cloudformation/agentcore-runtime.yaml" \
             --acl public-read
