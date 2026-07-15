@@ -179,6 +179,10 @@ Resources:
                   - bedrock-agentcore:UpdateAgentRuntime
                   - bedrock-agentcore:DeleteAgentRuntime
                   - bedrock-agentcore:GetAgentRuntime
+                  - bedrock-agentcore:CreateAgentRuntimeEndpoint
+                  - bedrock-agentcore:UpdateAgentRuntimeEndpoint
+                  - bedrock-agentcore:DeleteAgentRuntimeEndpoint
+                  - bedrock-agentcore:GetAgentRuntimeEndpoint
                 Resource: '*'
               - Effect: Allow
                 Action: ['iam:PassRole']
