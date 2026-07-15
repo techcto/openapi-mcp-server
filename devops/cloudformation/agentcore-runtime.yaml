@@ -147,7 +147,9 @@ Resources:
                 Action:
                   - bedrock-agentcore:InvokeAgentRuntime
                   - bedrock-agentcore:GetAgentCard
-                Resource: !GetAtt AgentCoreRuntime.RuntimeArn
+                Resource:
+                  - !GetAtt AgentCoreRuntime.RuntimeArn
+                  - !Sub '${AgentCoreRuntime.RuntimeArn}/runtime-endpoint/*'
 
   McpInvokerAccessKey:
     Type: AWS::IAM::AccessKey
