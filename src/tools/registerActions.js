@@ -188,10 +188,8 @@ function generateOperationSchema(operation, pathParams = [], openApiDoc) {
 
       for (const [key, propSchema] of Object.entries(contentSchema.properties)) {
         if (schema[key]) continue; // Avoid overwriting already defined fields
-        const type = propSchema.type || 'string';
         const description = propSchema.description || `Field: ${key}`;
-        const zodType = (type === 'integer' || type === 'number') ? z.number() : z.string();
-        const base = applyEnumAndDefault(zodType, propSchema);
+        const base = buildZodTypeFromSchema(propSchema);
         schema[key] = requiredFields.includes(key)
           ? base.describe(description)
           : base.optional().describe(description);
@@ -199,7 +197,57 @@ function generateOperationSchema(operation, pathParams = [], openApiDoc) {
     }
   }
 
+  // Explicitly declare the call-time override fields executeRequest()/resolveUpstreamBearerToken()
+  // already know how to use (see handler below). server.tool() is registered with schema.shape
+  // (a raw Zod shape, not this ZodObject), so its own .passthrough() modifier never survives the
+  // SDK's own z.object(shape) wrapping -- without declaring these here, the SDK's strict validation
+  // silently strips them (e.g. the bearerToken McpGateway.php injects into every tool call) before
+  // the handler ever runs.
+  if (!schema.bearerToken) {
+    schema.bearerToken = z.string().optional().describe('Override bearer token for this call');
+  }
+  if (!schema.headers) {
+    schema.headers = z.record(z.string()).optional().describe('Additional HTTP headers for this call');
+  }
+
   return z.object(schema).passthrough(); // Allow additional properties like bearerToken
+}
+
+// --- Convert an OpenAPI/JSON-Schema property into the matching Zod type ---
+// Request bodies with nested arrays/objects (e.g. { websites: [{ name: "..." }] })
+// used to fall through to a bare z.string(), so the SDK rejected any caller that
+// actually sent an array/object as "Expected string, received array/object".
+function buildZodTypeFromSchema(propSchema = {}, depth = 0) {
+  const type = propSchema.type || 'string';
+
+  switch (type) {
+    case 'integer':
+    case 'number':
+      return applyEnumAndDefault(z.number(), propSchema);
+    case 'boolean':
+      return applyEnumAndDefault(z.boolean(), propSchema);
+    case 'array': {
+      // Cap recursion so a pathological/self-referential schema can't hang startup.
+      const itemSchema = depth < 5 && propSchema.items
+        ? buildZodTypeFromSchema(propSchema.items, depth + 1)
+        : z.any();
+      return z.array(itemSchema);
+    }
+    case 'object': {
+      if (depth >= 5 || !propSchema.properties) {
+        return z.record(z.any());
+      }
+      const requiredFields = propSchema.required || [];
+      const shape = {};
+      for (const [key, nested] of Object.entries(propSchema.properties)) {
+        const nestedType = buildZodTypeFromSchema(nested, depth + 1);
+        shape[key] = requiredFields.includes(key) ? nestedType : nestedType.optional();
+      }
+      return z.object(shape).passthrough();
+    }
+    default:
+      return applyEnumAndDefault(z.string(), propSchema);
+  }
 }
 
 // --- Helper to apply `enum` and `default` ---
@@ -414,7 +462,7 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
               body = bodyData;
             }
 
-            console.log("📦 Sending body:", body);
+            console.log("📦 Sending body:", sanitizeBodyForLogs(body));
           }
 
           const result = await executeRequest(finalBaseUrl, actualPath, method, {
@@ -447,31 +495,17 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
       console.log(`✅ Registered ${registeredCount}/${executionTools.length} tools...`);
     }
 
-    console.error(`[DEBUG] Registering tool ${name} with MCP SDK`);
-
-    server.tool(name, description, schema, async (ctx) => {
+    // server.tool()'s 4-arg overload expects a raw Zod *shape* ({key: ZodType}),
+    // not a ZodObject instance -- passing `schema` (from z.object(...).passthrough())
+    // directly makes the SDK's isZodRawShape() check misclassify it as the
+    // `annotations` argument, silently dropping the input schema. With no input
+    // schema, the SDK invokes the callback as cb(extra) instead of cb(args, extra),
+    // so the handler only ever sees request transport metadata (signal/requestId/
+    // requestInfo), never the real tool arguments. Passing schema.shape keeps the
+    // shape recognizable so the SDK calls cb(args, extra) as intended.
+    server.tool(name, description, schema.shape, async (args, extra) => {
       try {
-        console.log(`🔥 FULL CONTEXT for ${name}:`, JSON.stringify(ctx, null, 2));
-
-        // ✅ Robust multi-transport argument handling with client global storage support
-        let args = {};
-
-        // First try client global storage (for new client)
-        if (ctx && ctx.requestId && global.mcpStoredArgs) {
-          args = global.mcpStoredArgs[ctx.requestId] || {};
-          console.error(`[DEBUG] Found stored args for request ${ctx.requestId}:`, JSON.stringify(args, null, 2));
-        }
-
-        // Fallback to original working server patterns
-        if (Object.keys(args).length === 0) {
-          args =
-            ctx?.params?.arguments ||  // HTTP or Postman-style
-            ctx?.arguments ||          // Claude STDIO sometimes uses this
-            ctx?._meta?.rawArgs ||     // fallback injection
-            ctx || {};                 // very last fallback
-        }
-
-        const result = await handler(args);
+        const result = await handler(args || {});
         return { ...result, _meta: { rawArgs: args } };
       } catch (error) {
         console.error(`💥 Tool ${name} failed:`, error.message);

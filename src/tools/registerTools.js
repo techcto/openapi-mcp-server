@@ -287,31 +287,12 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
     toolMap.set(name, tool);
     registeredCount++;
 
-    console.error(`[DEBUG] Registering tool ${name} with MCP SDK`);
-
-    server.tool(name, description, schema, async (ctx) => {
+    // See the matching note in registerActions.js: server.tool()'s 4-arg overload
+    // needs a raw Zod shape, not a ZodObject instance, or the SDK silently drops
+    // the input schema and the handler never sees real arguments.
+    server.tool(name, description, schema.shape, async (args, extra) => {
       try {
-        console.log(`🔥 FULL CONTEXT for ${name}:`, JSON.stringify(ctx, null, 2));
-
-        // ✅ Robust multi-transport argument handling with client global storage support
-        let args = {};
-
-        // First try client global storage (for new client)
-        if (ctx && ctx.requestId && global.mcpStoredArgs) {
-          args = global.mcpStoredArgs[ctx.requestId] || {};
-          console.error(`[DEBUG] Found stored args for request ${ctx.requestId}:`, JSON.stringify(args, null, 2));
-        }
-
-        // Fallback to original working server patterns
-        if (Object.keys(args).length === 0) {
-          args =
-            ctx?.params?.arguments ||  // HTTP or Postman-style
-            ctx?.arguments ||          // Claude STDIO sometimes uses this
-            ctx?._meta?.rawArgs ||     // fallback injection
-            ctx || {};                 // very last fallback
-        }
-
-        const result = await handler(args);
+        const result = await handler(args || {});
         return { ...result, _meta: { rawArgs: args } };
       } catch (error) {
         console.error(`💥 Tool ${name} failed:`, error.message);
@@ -329,28 +310,9 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
   server.tool(
     "prompts-list",
     "Suggests useful prompts for this OpenAPI schema",
-    z.object({}),
-    async (ctx) => {
+    {},
+    async (args, extra) => {
       try {
-        console.log(`🚨 DEBUG: prompts-list called with ctx:`, JSON.stringify(ctx, null, 2));
-
-        // ✅ Robust multi-transport argument handling with client global storage support
-        let args = {};
-
-        // First try client global storage (for new client)
-        if (ctx && ctx.requestId && global.mcpStoredArgs) {
-          args = global.mcpStoredArgs[ctx.requestId] || {};
-        }
-
-        // Fallback to original working server patterns
-        if (Object.keys(args).length === 0) {
-          args =
-            ctx?.params?.arguments ||
-            ctx?.arguments ||
-            ctx?._meta?.rawArgs ||
-            ctx || {};
-        }
-
         let openApiDoc;
         try {
           openApiDoc = await loadSchema(defaultConfig.openapiSchemaPath);
@@ -417,26 +379,8 @@ export async function registerTools(server, loadSchema, toolMap = new Map(), con
   server.tool(
     "debug-params",
     "Debug what parameters are actually received",
-    z.object({}).passthrough(), // Accept any arguments
-    async (ctx) => {
-      // ✅ Robust multi-transport argument handling with client global storage support
-      let args = {};
-
-      // First try client global storage (for new client)
-      if (ctx && ctx.requestId && global.mcpStoredArgs) {
-        args = global.mcpStoredArgs[ctx.requestId] || {};
-      }
-
-      // Fallback to original working server patterns
-      if (Object.keys(args).length === 0) {
-        args =
-          ctx?.params?.arguments ||
-          ctx?.arguments ||
-          ctx?._meta?.rawArgs ||
-          ctx || {};
-      }
-
-      console.log("🔥 FULL CONTEXT RECEIVED:", JSON.stringify(ctx, null, 2));
+    {}, // Accept any arguments
+    async (args, extra) => {
       return {
         content: [{
           type: "text",

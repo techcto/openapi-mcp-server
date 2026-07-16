@@ -12,6 +12,7 @@ import { setupMiddleware } from "./middleware/index.js";
 import { CONFIG } from "./config/config.js";
 import { filterValidTools, getToolCount } from "./utils/toolUtils.js";
 import { logger } from "./utils/logger.js";
+import { fetchServerInstructions } from "./utils/fetchInstructions.js";
 
 const app = express();
 
@@ -19,11 +20,19 @@ const app = express();
 setupMiddleware(app);
 
 // Initialize MCP server
-const mcpServer = new McpServer({
-  name: CONFIG.server.name,
-  version: CONFIG.server.version,
-  description: CONFIG.server.description,
-});
+const serverInstructions = await fetchServerInstructions(CONFIG.openapi.schemaPath);
+if (serverInstructions) {
+  logger.info("📜 Loaded server instructions from CMS /mcp/info");
+}
+
+const mcpServer = new McpServer(
+  {
+    name: CONFIG.server.name,
+    version: CONFIG.server.version,
+    description: CONFIG.server.description,
+  },
+  serverInstructions ? { instructions: serverInstructions } : undefined,
+);
 
 // Register all tools and actions
 logger.info("🔧 Registering tools and actions...");
