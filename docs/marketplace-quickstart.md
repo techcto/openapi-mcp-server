@@ -24,8 +24,7 @@ Before you begin, you need:
 
 ## Step 1: Subscribe on AWS Marketplace
 
-1. Open the **OpenAPI MCP** listing on AWS Marketplace. If the listing is still
-   under review, use the private listing link provided by AWS Marketplace.
+1. Open the [OpenAPI MCP listing on AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi).
 2. Choose **Continue to Subscribe**, accept the terms, then choose **Continue to Configuration**.
 3. Under **Delivery Method**, select **Container image**.
 4. Choose **Continue to Launch**.
@@ -48,6 +47,8 @@ Before you begin, you need:
 
 Alternatively, launch the published CloudFormation template:
 
+[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+
 <a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml&amp;stackName=openapi-mcp-agentcore"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch OpenAPI MCP AgentCore" /></a>
 
 The CloudFormation link uses the console's current Region. Select the target
@@ -68,6 +69,8 @@ long-lived upstream token only to make the schema reachable.
 
 For a turnkey private deployment in the customer's AWS account, launch the
 published ECS/Fargate template:
+
+[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
 
 <a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
 

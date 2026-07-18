@@ -26,6 +26,8 @@ API contract a practical bridge between business software and AI agents.
 
 ## Subscribe on AWS Marketplace
 
+[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+
 OpenAPI MCP is delivered as a container image for **Amazon Bedrock AgentCore
 Runtime**. After subscribing, AWS hosts and scales the MCP runtime for you;
 the runtime remains stateless and each customer supplies the API it wants to
