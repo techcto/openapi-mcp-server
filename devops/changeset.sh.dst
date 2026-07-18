@@ -91,7 +91,7 @@ DETAILS_JSON='{
                "CompatibleServices":[
                   "ECS"
                ],
-               "Description":"Run OpenAPI MCP as a private ECS/Fargate service inside the customer's AWS VPC",
+               "Description":"Run OpenAPI MCP as a private ECS/Fargate service inside the customer AWS VPC",
                "UsageInstructions":"For private deployment instructions, including VPC, subnet, ingress, target API, and MCP configuration, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md"
             }
          }
