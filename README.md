@@ -18,15 +18,40 @@ A reusable [Model Context Protocol](https://modelcontextprotocol.io/) server tha
 - generated execution tools for calling the underlying API
 - HTTP, SSE, STDIO, and Amazon Bedrock AgentCore Runtime transports
 
-This repo is intentionally generic. Solodev CMS is the flagship pre-configured integration, but the same server fronts Zendesk, WordPress, GitHub, Stripe, or any other OpenAPI-documented API with nothing more than three environment variables.
+This product is intentionally generic. Point it at a documented API and the
+same server can front a CMS, WordPress, GitHub, Stripe, a government service,
+or an internal business API without writing a custom MCP adapter.
 
 ## Subscribe on AWS Marketplace
 
-OpenAPI MCP is listed on AWS Marketplace as a container image for **Amazon Bedrock AgentCore Runtime** -- AWS hosts and scales it for you, session-isolated, no infrastructure to manage.
+OpenAPI MCP is delivered as a container image for **Amazon Bedrock AgentCore
+Runtime**. After subscribing, AWS hosts and scales the MCP runtime for you;
+the runtime remains stateless and each customer supplies the API it wants to
+expose.
 
-**[Subscribe on AWS Marketplace &rarr; TODO: paste the public listing URL here once visibility is public]**
+The listing may be private or under review while AWS completes publication.
+Search AWS Marketplace for **OpenAPI MCP** and choose the listing whose
+delivery method is **Container image** and whose compatible service is
+**Bedrock AgentCore**.
 
 Prefer to self-host instead? Skip straight to [Quick Start](./QUICKSTART.md) -- same image, runs anywhere Docker runs.
+
+## Choose The Right OpenADA Product
+
+OpenAPI MCP and OpenADA MCP are related but separate products. Choose based on
+the system your agent needs to operate:
+
+| Need | Product |
+|---|---|
+| Turn an arbitrary Swagger/OpenAPI document into MCP tools | **OpenAPI MCP AgentCore** (this repository) |
+| Give an agent native accessibility, language-quality, scan-history, and directory tools | **CMS MCP AgentCore** from the OpenADA project |
+| Run the complete private accessibility service with its own UI, API, worker, Redis, and DynamoDB archive | **OpenADA Private** ECS product |
+
+For a containerized CMS installation, launch the CMS MCP AgentCore product when
+you want the agent to understand CMS-specific MCP workflows. Launch this
+OpenAPI MCP product when the integration surface is an OpenAPI/Swagger
+document, including a CMS API that is intentionally being exposed as a
+generic API. They can be used together, but one does not replace the other.
 
 ## What It Does
 
@@ -87,7 +112,7 @@ Server endpoints:
 
 ### 1. Run it against a target API
 
-Example: Solodev CMS
+Example: a CMS or other OpenAPI-documented service
 
 ```bash
 export OPENAPI_URL="https://your-cms.example.com/mcp/openapi.json"
@@ -95,6 +120,11 @@ export API_BASE_URL="https://your-cms.example.com/api/v2"
 export OPENAPI_AUTH_TOKEN="cms-api-bearer-token"
 npm start
 ```
+
+The CMS MCP AgentCore product is the better fit when you need CMS actions and
+business workflows rather than generic generated API operations. See the
+[OpenADA MCP AgentCore quickstart](https://github.com/techcto/openada/blob/main/devops/agentcore/README.md)
+for that product's deployment path.
 
 Example: Zendesk
 
@@ -310,8 +340,8 @@ curl -X POST http://localhost:8000/mcp \
 
 Two ways to get a running AgentCore Runtime hosting this image:
 
-1. **Subscribe on AWS Marketplace** (link above) and use the launch flow -- AWS walks you through creating the runtime and filling in `OPENAPI_URL`/`API_BASE_URL`/`OPENAPI_AUTH_TOKEN`.
-2. **Launch [`devops/cloudformation/agentcore-runtime.yaml`](./devops/cloudformation/agentcore-runtime.yaml) directly** -- a CloudFormation stack that provisions the runtime plus a scoped IAM user/key an orchestrator can use to invoke it (left-side mode). See [`devops/cloudformation/README`](#) or `cft.sh` for the CLI testing workflow used during development.
+1. **Subscribe on AWS Marketplace** and choose the OpenAPI MCP listing whose delivery method is **Container image**. AWS then walks you through creating the runtime and filling in `OPENAPI_URL`/`API_BASE_URL`/`OPENAPI_AUTH_TOKEN`.
+2. **Launch [`devops/cloudformation/agentcore-runtime.yaml`](./devops/cloudformation/agentcore-runtime.yaml) directly** -- a CloudFormation stack that provisions the runtime plus a scoped IAM user/key an orchestrator can use to invoke it (left-side mode). The customer walkthrough is [OpenAPI MCP Quickstart](./QUICKSTART.md); `cft.sh` is a developer helper for validating the template.
 
 Either way, the output is a Runtime ARN (plus, from the CFT, a ready-to-paste `AccessKeyId`/`SecretAccessKey`/`Region` for left-side callers).
 
@@ -327,7 +357,10 @@ Reference: [Amazon Bedrock AgentCore Runtime for AWS Marketplace](https://docs.a
 - Verify `package-lock.json` is tracked before tagging a release.
 - Check that example tokens in docs and tests are placeholders, not live credentials.
 - Build the image for `linux/arm64` if this release will be used with AgentCore Runtime.
-- `./git.sh tag <version>` to cut a release; the GitHub Actions workflow builds, pushes to the Marketplace ECR repo, and submits the Marketplace changeset.
+- A version tag runs the GitHub Actions release that builds the ARM64 image,
+  publishes it to the Marketplace ECR repository, uploads the matching CFT,
+  and submits the delivery-option changeset. End users do not need this
+  release workflow; it is included here for maintainers.
 
 ## Project Structure
 

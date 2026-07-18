@@ -47,7 +47,7 @@ DETAILS_JSON='{
                   "MCP_SERVER"
                ],
                "Description":"Deploy OpenAPI MCP as a container image on Amazon Bedrock AgentCore Runtime",
-               "UsageInstructions":"For step-by-step instructions on configuring OpenAPI MCP against your target API, please visit the following URL: https://cms.solodev.net/quickstart/openapi-mcp/",
+               "UsageInstructions":"For end-user instructions on subscribing, configuring, testing, and connecting OpenAPI MCP AgentCore to a target OpenAPI or Swagger API, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md",
                "EnvironmentVariables":[
                   {
                      "Name":"OPENAPI_URL",

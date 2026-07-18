@@ -14,7 +14,10 @@ const sendMcpMessage = async (method, params = {}) => {
   try {
     const res = await fetch(baseUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+      },
       body: JSON.stringify(message),
     });
 
@@ -22,7 +25,12 @@ const sendMcpMessage = async (method, params = {}) => {
       throw new Error(`HTTP ${res.status}`);
     }
 
-    return await res.json();
+    const body = await res.text();
+    if (res.headers.get("content-type")?.includes("text/event-stream")) {
+      const dataLine = body.split("\n").find((line) => line.startsWith("data: "));
+      return dataLine ? JSON.parse(dataLine.slice(6)) : null;
+    }
+    return JSON.parse(body);
   } catch (err) {
     console.error(`❌ ${method} failed:`, err.message);
     return null;

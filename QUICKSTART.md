@@ -1,11 +1,18 @@
-# 🚀 Quick Start Guide
+# OpenAPI MCP AgentCore Quickstart
 
-Get any OpenAPI/Swagger API working with AI assistants in under 5 minutes!
+Turn an OpenAPI or Swagger API into MCP tools for an AI agent in a few minutes.
+
+This guide is for **OpenAPI MCP AgentCore**, the generic product that reads an
+API specification and creates discovery and execution tools. It is different
+from **CMS MCP AgentCore**, the OpenADA product that understands CMS-specific
+MCP workflows. Use CMS MCP AgentCore when the agent should operate a CMS
+through its native MCP contract; use this product when the integration starts
+with an OpenAPI/Swagger document.
 
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/your-username/openapi-mcp-server.git
+git clone https://github.com/techcto/openapi-mcp-server.git
 cd openapi-mcp-server
 npm install
 ```
@@ -59,6 +66,64 @@ docker compose up --build
 ```
 
 This builds the same image used for AWS Marketplace / Bedrock AgentCore Runtime, so anything working here will work identically there.
+
+## AWS Marketplace And AgentCore Runtime
+
+1. Subscribe to **OpenAPI MCP** in AWS Marketplace and select the
+   **Container image** delivery method for **Bedrock AgentCore**.
+2. Create an AgentCore Runtime from the subscribed image, or launch the
+   [product CloudFormation template](./devops/cloudformation/agentcore-runtime.yaml)
+   from the repository's public CFT location.
+
+Launch the published CloudFormation template in the AWS console:
+
+<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml&amp;stackName=openapi-mcp-agentcore"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch OpenAPI MCP AgentCore" /></a>
+
+The launch link opens CloudFormation in the console's current Region. Choose
+the Region where you want the AgentCore runtime before creating the stack.
+
+3. Configure the runtime with the target API values below. These are values for
+   the API being connected, not AWS access keys:
+
+   | Variable | Required | Value |
+   |---|---:|---|
+   | `OPENAPI_URL` | Yes | Public or reachable JSON/YAML OpenAPI specification |
+   | `API_BASE_URL` | Yes | Base URL called by generated tools |
+   | `OPENAPI_AUTH_TOKEN` | No | Bearer token for the target API |
+   | `MCP_ALLOWED_TOOLS` | No | Comma-separated tool allowlist for large APIs |
+
+4. Wait for the runtime to become **Ready**, then copy its Runtime ARN and
+   invoke it with an AWS-authenticated AgentCore client. The runtime boundary
+   uses IAM/SigV4; do not put AWS credentials in an MCP JSON-RPC message.
+
+For a CMS API, use the CMS's OpenAPI document and API base URL. If the goal is
+for an agent to understand CMS publishing, permissions, or other native CMS
+workflows, use [CMS MCP AgentCore](https://github.com/techcto/openada/tree/main/devops/agentcore)
+instead.
+
+### AgentCore console smoke test
+
+The AgentCore test panel sends JSON-RPC to an MCP server, so the input is not a
+generic `{"prompt":"..."}` object. Run these in order:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"aws-console","version":"1.0"}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+```
+
+Then call one tool returned by `tools/list`, for example:
+
+```json
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list-endpoints","arguments":{}}}
+```
+
+The exact generated tool names depend on the target specification. If the
+runtime returns HTTP 400, first check CloudWatch logs and verify that
+`OPENAPI_URL` is reachable from the runtime, contains a `paths` object, and
+that `API_BASE_URL` is the matching service origin.
 
 ## 🧪 Test It Works
 
