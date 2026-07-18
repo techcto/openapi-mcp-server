@@ -33,11 +33,6 @@ Runtime**. After subscribing, AWS hosts and scales the MCP runtime for you;
 the runtime remains stateless and each customer supplies the API it wants to
 expose.
 
-The listing may be private or under review while AWS completes publication.
-Search AWS Marketplace for **OpenAPI MCP** and choose the listing whose
-delivery method is **Container image** and whose compatible service is
-**Bedrock AgentCore**.
-
 Prefer to run it inside your own AWS account? See [Private OpenAPI MCP](#private-openapi-mcp) and the [Quick Start](./QUICKSTART.md).
 
 ## Public And Private Deployment
@@ -69,6 +64,8 @@ that path; otherwise expose the service through the customer's own internal or
 authenticated MCP endpoint.
 
 For a guided ECS/Fargate deployment, launch the published private template:
+
+[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
 
 <a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
 
@@ -401,10 +398,13 @@ curl -X POST http://localhost:8000/mcp \
 
 ### Deploying to AgentCore Runtime
 
-Two ways to get a running AgentCore Runtime hosting this image:
+Subscribe through AWS Marketplace and create the AgentCore Runtime from the
+container image, or launch the published CloudFormation template below. The
+customer walkthrough is [OpenAPI MCP Quickstart](./QUICKSTART.md).
 
-1. **Subscribe on AWS Marketplace** and choose the OpenAPI MCP listing whose delivery method is **Container image**. AWS then walks you through creating the runtime and filling in `OPENAPI_URL`/`API_BASE_URL`/`OPENAPI_AUTH_TOKEN`.
-2. **Launch [`devops/cloudformation/agentcore-runtime.yaml`](./devops/cloudformation/agentcore-runtime.yaml) directly** -- a CloudFormation stack that provisions the runtime plus a scoped IAM user/key an orchestrator can use to invoke it (left-side mode). The customer walkthrough is [OpenAPI MCP Quickstart](./QUICKSTART.md); `cft.sh` is a developer helper for validating the template.
+[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+
+<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml&amp;stackName=openapi-mcp-agentcore"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch OpenAPI MCP AgentCore" /></a>
 
 Either way, the output is a Runtime ARN (plus, from the CFT, a ready-to-paste `AccessKeyId`/`SecretAccessKey`/`Region` for left-side callers).
 
@@ -417,8 +417,6 @@ the `DEFAULT` endpoint, and choose **Test**. The direct URL format is:
 https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
 ```
 
-The current OpenAPI MCP smoke-test runtime can be opened at
-<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>.
 Leave Session ID blank and paste the `initialize`, `tools/list`, and
 `tools/call` JSON-RPC examples from [QUICKSTART.md](./QUICKSTART.md) in order.
 

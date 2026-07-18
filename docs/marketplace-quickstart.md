@@ -84,7 +84,7 @@ HTTPS and restrict `IngressCidr` to the trusted client network.
 
 The stack outputs the endpoint. Configure MCP clients with the output URL plus
 `/mcp`; if `McpAuthToken` was set, send it as `Authorization: Bearer <token>`.
-The same JSON-RPC smoke test below works for both the AgentCore and private
+The same JSON-RPC test below works for both the AgentCore and private
 ECS paths.
 
 ## Step 4: Verify the runtime
@@ -96,9 +96,6 @@ format is:
 ```text
 https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
 ```
-
-For the current OpenAPI MCP smoke-test runtime, use:
-<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>
 
 Leave Session ID blank for the first request. Use MCP JSON-RPC messages, not
 the generic `prompt` example:

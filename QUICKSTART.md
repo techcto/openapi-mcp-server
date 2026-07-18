@@ -122,15 +122,14 @@ Leave `InternalLoadBalancer` set to `true` for a private service. Add an ACM
 certificate to use HTTPS. The stack outputs the MCP URL; append `/mcp` when
 configuring a client. Use the `IngressCidr` value to limit which network can
 reach the load balancer. For production, move tokens into the customer's
-Secrets Manager/ECS secret integration after the initial smoke test.
+Secrets Manager/ECS secret integration after the initial verification.
 
 ## AWS Marketplace And AgentCore Runtime
 
 1. Subscribe to **OpenAPI MCP** in AWS Marketplace and select the
    **Container image** delivery method for **Bedrock AgentCore**.
 2. Create an AgentCore Runtime from the subscribed image, or launch the
-   [product CloudFormation template](./devops/cloudformation/agentcore-runtime.yaml)
-   from the repository's public CFT location.
+   published CloudFormation template below.
 
 Launch the published CloudFormation template in the AWS console:
 
@@ -160,7 +159,7 @@ Solodev, WordPress, Drupal, and other platforms that publish a usable contract.
 If a CMS provides a native MCP server with richer publishing or permission
 workflows, compare that integration with generated OpenAPI tools.
 
-### AgentCore console smoke test
+### AgentCore console test
 
 In AWS, open **Amazon Bedrock AgentCore > Agents > Runtime**, select the
 runtime, choose the `DEFAULT` endpoint, and select **Test**. The direct URL
@@ -169,10 +168,6 @@ shape is:
 ```text
 https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
 ```
-
-For the current OpenAPI MCP smoke-test runtime, the direct link is:
-
-<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>
 
 Leave **Session ID** blank for the first request. The AgentCore test panel
 sends MCP JSON-RPC, not the generic `{"prompt":"..."}` example. Run these in
