@@ -406,6 +406,20 @@ Two ways to get a running AgentCore Runtime hosting this image:
 
 Either way, the output is a Runtime ARN (plus, from the CFT, a ready-to-paste `AccessKeyId`/`SecretAccessKey`/`Region` for left-side callers).
 
+### Test in the AWS AgentCore console
+
+Open **Amazon Bedrock AgentCore > Agents > Runtime**, select the runtime, pick
+the `DEFAULT` endpoint, and choose **Test**. The direct URL format is:
+
+```text
+https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
+```
+
+The current OpenAPI MCP smoke-test runtime can be opened at
+<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>.
+Leave Session ID blank and paste the `initialize`, `tools/list`, and
+`tools/call` JSON-RPC examples from [QUICKSTART.md](./QUICKSTART.md) in order.
+
 ### Left side vs. right side, concretely
 
 - **Left side (orchestrator-side)**: hand the Runtime ARN + scoped AWS credentials to your orchestrator (e.g. paste into an Osirus "OpenAPI MCP" provider connection). The orchestrator calls `InvokeAgentRuntime` itself.

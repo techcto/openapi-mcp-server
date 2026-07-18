@@ -1,13 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  OpenAPI MCP -- Amazon Bedrock AgentCore Runtime stack.
-  Provisions an AgentCore Runtime pointed at the OpenAPI MCP container image,
-  configured against a target API's OpenAPI/Swagger spec. There is no native
-  CloudFormation resource type for AgentCore runtimes yet, so this stack uses
-  a Lambda-backed custom resource to call bedrock-agentcore-control directly
-  (same technique used by other AgentCore-provisioning stacks).
-  NAMING: The stack name is used as the base for the runtime name and IAM
-  role names. Use lowercase letters, numbers, and hyphens only.
+  OpenAPI MCP on Amazon Bedrock AgentCore Runtime. Creates an AgentCore
+  runtime for the Marketplace OpenAPI MCP container and configures it to
+  generate tools from a target OpenAPI or Swagger document.
 
 Metadata:
   AWS::CloudFormation::Interface:

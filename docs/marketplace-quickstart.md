@@ -86,8 +86,19 @@ ECS paths.
 
 ## Step 4: Verify the runtime
 
-Use the AWS AgentCore test panel with MCP JSON-RPC messages, not the generic
-`prompt` example:
+In AWS, open **Amazon Bedrock AgentCore > Agents > Runtime**, select the
+runtime, choose the `DEFAULT` endpoint, and select **Test**. The direct URL
+format is:
+
+```text
+https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
+```
+
+For the current OpenAPI MCP smoke-test runtime, use:
+<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>
+
+Leave Session ID blank for the first request. Use MCP JSON-RPC messages, not
+the generic `prompt` example:
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"aws-console","version":"1.0"}}}

@@ -158,8 +158,21 @@ workflows, compare that integration with generated OpenAPI tools.
 
 ### AgentCore console smoke test
 
-The AgentCore test panel sends JSON-RPC to an MCP server, so the input is not a
-generic `{"prompt":"..."}` object. Run these in order:
+In AWS, open **Amazon Bedrock AgentCore > Agents > Runtime**, select the
+runtime, choose the `DEFAULT` endpoint, and select **Test**. The direct URL
+shape is:
+
+```text
+https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
+```
+
+For the current OpenAPI MCP smoke-test runtime, the direct link is:
+
+<https://us-east-1.console.aws.amazon.com/bedrock-agentcore/agents/openapi_mcp_agentcore_test-d6Ng8r2BIa/test>
+
+Leave **Session ID** blank for the first request. The AgentCore test panel
+sends MCP JSON-RPC, not the generic `{"prompt":"..."}` example. Run these in
+order:
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"aws-console","version":"1.0"}}}
@@ -173,6 +186,13 @@ Then call one tool returned by `tools/list`, for example:
 
 ```json
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list-endpoints","arguments":{}}}
+```
+
+When the runtime is configured with OpenADA's document and base URL, this
+checks the live OpenADA API through the generated OpenAPI tool layer:
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"execute-request","arguments":{"path":"/api/v1/directory","method":"GET"}}}
 ```
 
 The exact generated tool names depend on the target specification. If the
