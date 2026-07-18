@@ -40,6 +40,12 @@ DETAILS_JSON='{
                "ContainerImages":[
                   "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
                ],
+               "DeploymentResources":[
+                  {
+                     "Name":"AgentCoreCloudFormationTemplate",
+                     "Url":"https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml"
+                  }
+               ],
                "CompatibleServices":[
                   "Bedrock-AgentCore"
                ],
@@ -66,6 +72,27 @@ DETAILS_JSON='{
                      "Description":"Optional comma-separated allowlist of tool names to expose. Leave blank to expose every tool generated from the OpenAPI spec."
                   }
                ]
+            }
+         }
+      },
+      {
+         "DeliveryOptionTitle":"Private ECS/Fargate",
+         "Details":{
+            "EcrDeliveryOptionDetails":{
+               "ContainerImages":[
+                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
+               ],
+               "DeploymentResources":[
+                  {
+                     "Name":"PrivateEcsCloudFormationTemplate",
+                     "Url":"https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml"
+                  }
+               ],
+               "CompatibleServices":[
+                  "ECS"
+               ],
+               "Description":"Run OpenAPI MCP as a private ECS/Fargate service inside the customer's AWS VPC",
+               "UsageInstructions":"For private deployment instructions, including VPC, subnet, ingress, target API, and MCP configuration, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md"
             }
          }
       }

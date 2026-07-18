@@ -96,6 +96,32 @@ CRM or ticketing systems, Kubernetes control planes, deployment platforms, and
 any API that is documented with Swagger/OpenAPI but should not be exposed to
 the public internet.
 
+### Launch the private ECS/Fargate stack
+
+After subscribing to OpenAPI MCP, use the same Marketplace image inside your
+AWS account with the published CloudFormation template:
+
+<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
+
+Provide these values in the CloudFormation form:
+
+| Parameter | Guidance |
+|---|---|
+| `VpcId` | VPC that can reach the target API |
+| `LoadBalancerSubnets` | Two or more subnets for the ALB |
+| `ServiceSubnets` | Private subnets with NAT access, or public subnets when testing with public IPs |
+| `OpenApiUrl` | Reachable OpenAPI/Swagger JSON or YAML URL |
+| `ApiBaseUrl` | Base URL generated tools will call |
+| `OpenApiAuthToken` | Optional target API bearer token |
+| `McpAuthToken` | Optional bearer token required from MCP clients |
+| `AllowedTools` | Optional comma-separated tool allowlist |
+
+Leave `InternalLoadBalancer` set to `true` for a private service. Add an ACM
+certificate to use HTTPS. The stack outputs the MCP URL; append `/mcp` when
+configuring a client. Use the `IngressCidr` value to limit which network can
+reach the load balancer. For production, move tokens into the customer's
+Secrets Manager/ECS secret integration after the initial smoke test.
+
 ## AWS Marketplace And AgentCore Runtime
 
 1. Subscribe to **OpenAPI MCP** in AWS Marketplace and select the

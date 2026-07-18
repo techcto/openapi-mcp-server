@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Private OpenAPI MCP on Amazon ECS/Fargate. Runs the Marketplace container
+  inside the customer's VPC and exposes a health-checked MCP service through
+  an Application Load Balancer.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Container image
+        Parameters:
+          - ContainerImageUri
+      - Label:
+          default: Network
+        Parameters:
+          - VpcId
+          - LoadBalancerSubnets
+          - ServiceSubnets
+          - InternalLoadBalancer
+          - IngressCidr
+          - CertificateArn
+          - AssignPublicIp
+      - Label:
+          default: Target API
+        Parameters:
+          - OpenApiUrl
+          - ApiBaseUrl
+          - OpenApiAuthToken
+      - Label:
+          default: MCP options
+        Parameters:
+          - McpAuthToken
+          - AllowedTools
+          - DesiredCount
+          - Cpu
+          - Memory
+    ParameterLabels:
+      ContainerImageUri: { default: Container image URI }
+      VpcId: { default: VPC }
+      LoadBalancerSubnets: { default: Load balancer subnets }
+      ServiceSubnets: { default: ECS service subnets }
+      InternalLoadBalancer: { default: Internal load balancer }
+      IngressCidr: { default: Allowed client CIDR }
+      CertificateArn: { default: ACM certificate ARN (optional) }
+      AssignPublicIp: { default: Assign public IP to tasks }
+      OpenApiUrl: { default: OpenAPI/Swagger URL }
+      ApiBaseUrl: { default: Target API base URL }
+      OpenApiAuthToken: { default: Target API bearer token }
+      McpAuthToken: { default: MCP bearer token }
+      AllowedTools: { default: Allowed tools }
+
+Parameters:
+  ContainerImageUri:
+    Type: String
+    Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}
+    Description: Marketplace OpenAPI MCP image URI, including its version tag.
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where the private MCP service will run.
+
+  LoadBalancerSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two or more subnets for the Application Load Balancer.
+
+  ServiceSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnets for the ECS tasks. NAT access is required when AssignPublicIp is disabled.
+
+  InternalLoadBalancer:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Use an internal ALB for private clients. Set false only for a public test endpoint.
+
+  IngressCidr:
+    Type: String
+    Default: 10.0.0.0/8
+    Description: CIDR allowed to reach the MCP listener. Use the smallest trusted network range.
+
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: Optional ACM certificate ARN in this Region. HTTPS is used when provided.
+
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: Set ENABLED only when service subnets are public and have a route to the internet.
+
+  OpenApiUrl:
+    Type: String
+    Description: URL or private URL for the target API's OpenAPI or Swagger document.
+
+  ApiBaseUrl:
+    Type: String
+    Description: Base URL called by generated tools. It must be reachable from the ECS subnets.
+
+  OpenApiAuthToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Optional bearer token for the target API. Prefer an ECS secret integration for production.
+
+  McpAuthToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Optional bearer token required from MCP clients.
+
+  AllowedTools:
+    Type: String
+    Default: ''
+    Description: Optional comma-separated allowlist of tools. Leave blank to expose all generated tools.
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+
+  Cpu:
+    Type: String
+    Default: '512'
+    AllowedValues: ['256', '512', '1024', '2048', '4096']
+
+  Memory:
+    Type: String
+    Default: '1024'
+    AllowedValues: ['512', '1024', '2048', '3072', '4096', '5120', '6144', '7168', '8192']
+
+Conditions:
+  IsInternal: !Equals [!Ref InternalLoadBalancer, 'true']
+  HasOpenApiAuthToken: !Not [!Equals [!Ref OpenApiAuthToken, '']]
+  HasMcpAuthToken: !Not [!Equals [!Ref McpAuthToken, '']]
+  HasAllowedTools: !Not [!Equals [!Ref AllowedTools, '']]
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+
+Resources:
+  OpenApiMcpLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+
+  OpenApiMcpCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenAPI MCP ALB ingress
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref IngressCidr
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref IngressCidr
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenAPI MCP ECS task traffic
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !GetAtt LoadBalancerSecurityGroup.GroupId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+
+  OpenApiMcpTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${AWS::StackName}-openapi-mcp'
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: openapi-mcp
+          Image: !Ref ContainerImageUri
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Environment:
+            - Name: PORT
+              Value: '8000'
+            - Name: HOST
+              Value: 0.0.0.0
+            - Name: OPENAPI_URL
+              Value: !Ref OpenApiUrl
+            - Name: API_BASE_URL
+              Value: !Ref ApiBaseUrl
+            - !If
+              - HasOpenApiAuthToken
+              - Name: OPENAPI_AUTH_TOKEN
+                Value: !Ref OpenApiAuthToken
+              - !Ref AWS::NoValue
+            - !If
+              - HasMcpAuthToken
+              - Name: MCP_AUTH_TOKEN
+                Value: !Ref McpAuthToken
+              - !Ref AWS::NoValue
+            - !If
+              - HasAllowedTools
+              - Name: MCP_ALLOWED_TOOLS
+                Value: !Ref AllowedTools
+              - !Ref AWS::NoValue
+            - Name: REQUIRE_AUTH
+              Value: !If [HasMcpAuthToken, 'true', 'false']
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - >-
+                node -e "require('http').get('http://127.0.0.1:8000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 20
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref OpenApiMcpLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: openapi-mcp
+
+  OpenApiMcpLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: !If [IsInternal, internal, internet-facing]
+      Subnets: !Ref LoadBalancerSubnets
+      SecurityGroups: [!GetAtt LoadBalancerSecurityGroup.GroupId]
+      Type: application
+
+  OpenApiMcpTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 8000
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VpcId
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckPort: traffic-port
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: '200'
+
+  OpenApiMcpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref OpenApiMcpLoadBalancer
+      Port: !If [HasCertificate, 443, 80]
+      Protocol: !If [HasCertificate, HTTPS, HTTP]
+      Certificates: !If
+        - HasCertificate
+        - - CertificateArn: !Ref CertificateArn
+        - !Ref AWS::NoValue
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref OpenApiMcpTargetGroup
+
+  OpenApiMcpService:
+    Type: AWS::ECS::Service
+    DependsOn: OpenApiMcpListener
+    Properties:
+      Cluster: !Ref OpenApiMcpCluster
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      TaskDefinition: !Ref OpenApiMcpTaskDefinition
+      HealthCheckGracePeriodSeconds: 60
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          SecurityGroups: [!GetAtt ServiceSecurityGroup.GroupId]
+          Subnets: !Ref ServiceSubnets
+      LoadBalancers:
+        - ContainerName: openapi-mcp
+          ContainerPort: 8000
+          TargetGroupArn: !Ref OpenApiMcpTargetGroup
+
+Outputs:
+  McpUrl:
+    Description: MCP endpoint. Add /mcp to this URL.
+    Value: !If
+      - HasCertificate
+      - !Sub 'https://${OpenApiMcpLoadBalancer.DNSName}/mcp'
+      - !Sub 'http://${OpenApiMcpLoadBalancer.DNSName}/mcp'
+  LoadBalancerDnsName:
+    Description: Load balancer hostname for internal DNS or an authenticated gateway.
+    Value: !GetAtt OpenApiMcpLoadBalancer.DNSName
+  ClusterName:
+    Description: ECS cluster created for the private OpenAPI MCP service.
+    Value: !Ref OpenApiMcpCluster
+  ServiceName:
+    Description: ECS service created for the private OpenAPI MCP service.
+    Value: !Sub '${AWS::StackName}-openapi-mcp'

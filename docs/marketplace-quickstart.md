@@ -64,6 +64,26 @@ or another container platform; use private DNS, internal load balancing, VPN or
 private links as required by the target API. Do not expose an internal API or
 long-lived upstream token only to make the schema reachable.
 
+### Private ECS/Fargate launch
+
+For a turnkey private deployment in the customer's AWS account, launch the
+published ECS/Fargate template:
+
+<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
+
+The stack creates an ECS cluster, Fargate task definition, Application Load
+Balancer, security groups, service, and CloudWatch log group. Supply a VPC,
+two or more load balancer subnets, service subnets, `OpenApiUrl`, and
+`ApiBaseUrl`. The default internal load balancer keeps the MCP endpoint inside
+the VPC. Service subnets need NAT access to pull the subscribed image unless
+you deliberately enable public IPs for a test. Add an ACM certificate for
+HTTPS and restrict `IngressCidr` to the trusted client network.
+
+The stack outputs the endpoint. Configure MCP clients with the output URL plus
+`/mcp`; if `McpAuthToken` was set, send it as `Authorization: Bearer <token>`.
+The same JSON-RPC smoke test below works for both the AgentCore and private
+ECS paths.
+
 ## Step 4: Verify the runtime
 
 Use the AWS AgentCore test panel with MCP JSON-RPC messages, not the generic

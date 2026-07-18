@@ -66,6 +66,17 @@ as an AWS-authenticated front door when the customer's network design allows
 that path; otherwise expose the service through the customer's own internal or
 authenticated MCP endpoint.
 
+For a guided ECS/Fargate deployment, launch the published private template:
+
+<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
+
+The template asks for a VPC, load balancer subnets, ECS service subnets, the
+OpenAPI document URL, and the target API base URL. Keep the default internal
+load balancer for private access. The ECS service needs NAT egress to pull the
+Marketplace image when tasks have no public IP; use public service subnets and
+`AssignPublicIp=ENABLED` only for a controlled test. Add an ACM certificate for
+HTTPS and use the smallest trusted `IngressCidr` for clients.
+
 The container is stateless. API schema and execution state come from the
 configured target API, so private deployments do not require a separate
 OpenAPI MCP database.
@@ -427,6 +438,7 @@ src/
 devops/
   cloudformation/
     agentcore-runtime.yaml   # standalone AgentCore Runtime stack
+    private-ecs.yaml          # private ECS/Fargate stack
   changeset.sh.dst           # AWS Marketplace changeset template
 docs/
   marketplace-quickstart.md  # AWS Marketplace / AgentCore Runtime walkthrough
