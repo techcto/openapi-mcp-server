@@ -3,9 +3,16 @@
 OpenAPI MCP turns any OpenAPI or Swagger specification into a ready-to-use [Model Context Protocol](https://modelcontextprotocol.io/) tool server. Point it at an API's OpenAPI document and any MCP-compatible AI agent -- Amazon Bedrock AgentCore, Claude, or another MCP client -- gains search, create, read, and update tools for that API's resources, with no custom integration code to write.
 
 This is the end-user deployment guide for the **OpenAPI MCP AgentCore**
-product. It is separate from the OpenADA **CMS MCP AgentCore** product: OpenAPI
-MCP dynamically generates tools from a Swagger/OpenAPI document, while CMS MCP
-AgentCore exposes CMS-specific MCP workflows.
+product. OpenAPI MCP dynamically generates tools from a Swagger/OpenAPI
+document. CMS platforms such as Solodev, WordPress, and Drupal are supported
+targets, along with CRM, support, commerce, Kubernetes, DevOps, finance, and
+cloud APIs.
+
+The Marketplace runtime is the public managed option. For private APIs or
+strict data-boundary requirements, deploy the same container in the customer's
+AWS account as **Private OpenAPI MCP** using ECS, EKS, or another private
+container platform. Keep the MCP endpoint and target API on private networking
+and inject credentials from the customer's secret store.
 
 ## Prerequisites
 
@@ -52,6 +59,11 @@ deployment Region before creating the stack.
 
 If you'd rather self-host instead of using AgentCore Runtime, run the same container image as a standard deployment/service on your own EKS cluster, setting the same three environment variables. Route MCP client traffic to `POST /mcp` on port 8000.
 
+This is the Private OpenAPI MCP deployment path. The same image can run on ECS
+or another container platform; use private DNS, internal load balancing, VPN or
+private links as required by the target API. Do not expose an internal API or
+long-lived upstream token only to make the schema reachable.
+
 ## Step 4: Verify the runtime
 
 Use the AWS AgentCore test panel with MCP JSON-RPC messages, not the generic
@@ -90,10 +102,9 @@ You should see a list of tools generated from your API's OpenAPI specification -
 
 - Restrict which tools are exposed with the `MCP_ALLOWED_TOOLS` environment variable.
 - Protect the MCP server itself with `MCP_AUTH_TOKEN` (or `MCP_AUTH_TOKENS`) if it's reachable outside of AgentCore Runtime's own access controls.
-- CMS customers: use the CMS instance's Settings -> Providers -> MCP page to
-  find its OpenAPI URL and connection token. Choose CMS MCP AgentCore instead
-  when you need the CMS's native MCP workflows rather than generic generated
-  operations.
+- For CMS targets, use the platform's current OpenAPI URL and connection token.
+  If the platform also offers a native MCP server, compare its domain-specific
+  workflows with the generated OpenAPI operations.
 
 ## See Also
 

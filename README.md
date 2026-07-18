@@ -20,7 +20,9 @@ A reusable [Model Context Protocol](https://modelcontextprotocol.io/) server tha
 
 This product is intentionally generic. Point it at a documented API and the
 same server can front a CMS, WordPress, GitHub, Stripe, a government service,
-or an internal business API without writing a custom MCP adapter.
+or an internal business API without writing a custom MCP adapter. Most modern
+SaaS platforms publish some form of Swagger or OpenAPI description, making the
+API contract a practical bridge between business software and AI agents.
 
 ## Subscribe on AWS Marketplace
 
@@ -34,24 +36,58 @@ Search AWS Marketplace for **OpenAPI MCP** and choose the listing whose
 delivery method is **Container image** and whose compatible service is
 **Bedrock AgentCore**.
 
-Prefer to self-host instead? Skip straight to [Quick Start](./QUICKSTART.md) -- same image, runs anywhere Docker runs.
+Prefer to run it inside your own AWS account? See [Private OpenAPI MCP](#private-openapi-mcp) and the [Quick Start](./QUICKSTART.md).
 
-## Choose The Right OpenADA Product
+## Public And Private Deployment
 
-OpenAPI MCP and OpenADA MCP are related but separate products. Choose based on
-the system your agent needs to operate:
+### Public OpenAPI MCP AgentCore
+
+The public Marketplace path runs the ARM64 container on Amazon Bedrock
+AgentCore Runtime. AWS supplies the runtime boundary, IAM/SigV4 invocation
+controls, scaling, and session isolation. This is a good fit when the target
+API is publicly reachable or is deliberately exposed through a secure API
+gateway.
+
+### Private OpenAPI MCP
+
+Private OpenAPI MCP runs the same container in the customer's AWS account and
+network boundary. Deploy it as an ECS service, EKS workload, or another
+customer-managed container service, then point `OPENAPI_URL` and
+`API_BASE_URL` at private DNS names or internal load balancers. Store
+`OPENAPI_AUTH_TOKEN` and any MCP client credentials in AWS Secrets Manager or
+the platform's equivalent secret store; do not bake them into an image or
+commit them to a repository.
+
+Use the private mode when the API is internal, the SaaS tenant data must stay
+inside a customer boundary, the MCP endpoint must be reachable only through a
+VPN or private network, or the organization needs its own logs, ingress,
+scaling, and retention controls. The private service can still use AgentCore
+as an AWS-authenticated front door when the customer's network design allows
+that path; otherwise expose the service through the customer's own internal or
+authenticated MCP endpoint.
+
+The container is stateless. API schema and execution state come from the
+configured target API, so private deployments do not require a separate
+OpenAPI MCP database.
+
+## Choose The Right Integration
+
+OpenAPI MCP is the general-purpose option when an API already has an
+OpenAPI/Swagger contract. Choose the integration style that matches the system
+your agent needs to operate:
 
 | Need | Product |
 |---|---|
 | Turn an arbitrary Swagger/OpenAPI document into MCP tools | **OpenAPI MCP AgentCore** (this repository) |
-| Give an agent native accessibility, language-quality, scan-history, and directory tools | **CMS MCP AgentCore** from the OpenADA project |
-| Run the complete private accessibility service with its own UI, API, worker, Redis, and DynamoDB archive | **OpenADA Private** ECS product |
+| Keep the MCP gateway and API traffic inside a customer AWS boundary | **Private OpenAPI MCP** using the same container |
+| Give an agent native CMS workflows | A CMS-specific MCP server or connector |
+| Integrate a system without an OpenAPI contract | A native MCP server or an adapter that publishes an OpenAPI contract |
 
-For a containerized CMS installation, launch the CMS MCP AgentCore product when
-you want the agent to understand CMS-specific MCP workflows. Launch this
-OpenAPI MCP product when the integration surface is an OpenAPI/Swagger
-document, including a CMS API that is intentionally being exposed as a
-generic API. They can be used together, but one does not replace the other.
+For a CMS installation, use this product when you want generated tools from its
+API contract. Solodev, WordPress, and Drupal are examples of CMS targets; the
+same approach applies to CRM, ticketing, commerce, collaboration, Kubernetes,
+DevOps, finance, and cloud APIs. Choose the private deployment when those APIs
+or their credentials must not leave the customer's environment.
 
 ## What It Does
 
@@ -121,10 +157,10 @@ export OPENAPI_AUTH_TOKEN="cms-api-bearer-token"
 npm start
 ```
 
-The CMS MCP AgentCore product is the better fit when you need CMS actions and
-business workflows rather than generic generated API operations. See the
-[OpenADA MCP AgentCore quickstart](https://github.com/techcto/openada/blob/main/devops/agentcore/README.md)
-for that product's deployment path.
+If a platform already provides a native MCP server, compare that integration's
+domain-specific workflows with generated OpenAPI tools before choosing one.
+OpenAPI MCP is the useful fallback when the API contract is the authoritative
+integration surface.
 
 Example: Zendesk
 
@@ -143,6 +179,20 @@ export API_BASE_URL="https://your-wordpress.example.com/wp-json"
 export OPENAPI_AUTH_TOKEN="wp-api-token"
 npm start
 ```
+
+### Strong API targets
+
+OpenAPI MCP is a useful starting point for APIs in these common business
+categories:
+
+- **CRM:** Salesforce, HubSpot, Microsoft Dynamics 365, and Zoho
+- **Support and work management:** Zendesk, ServiceNow, Jira, and PagerDuty
+- **Commerce and payments:** Shopify, WooCommerce, Stripe, Square, and Plaid
+- **Content and collaboration:** Drupal, WordPress, Contentful, Slack, and Microsoft Graph
+- **Engineering and platform operations:** GitHub, GitLab, Kubernetes, Argo CD, and cloud provider APIs
+
+Availability and authentication vary by vendor. Use the vendor's current
+OpenAPI document and follow its API terms, scopes, and rate limits.
 
 ### 2. Protect the MCP server itself
 

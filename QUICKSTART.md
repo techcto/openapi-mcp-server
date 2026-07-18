@@ -3,11 +3,16 @@
 Turn an OpenAPI or Swagger API into MCP tools for an AI agent in a few minutes.
 
 This guide is for **OpenAPI MCP AgentCore**, the generic product that reads an
-API specification and creates discovery and execution tools. It is different
-from **CMS MCP AgentCore**, the OpenADA product that understands CMS-specific
-MCP workflows. Use CMS MCP AgentCore when the agent should operate a CMS
-through its native MCP contract; use this product when the integration starts
-with an OpenAPI/Swagger document.
+API specification and creates discovery and execution tools. It works across
+CMS platforms such as Solodev, WordPress, and Drupal, as well as CRM, support,
+commerce, Kubernetes, DevOps, and cloud APIs. Use a native MCP integration when
+domain-specific workflows are more important than generated API operations;
+use this product when the OpenAPI/Swagger contract is the authoritative
+integration surface.
+
+There are two deployment choices: **Public OpenAPI MCP AgentCore** runs the
+container on Amazon Bedrock AgentCore Runtime, while **Private OpenAPI MCP**
+runs the same container inside a customer's AWS account and network boundary.
 
 ## 📦 Installation
 
@@ -67,6 +72,30 @@ docker compose up --build
 
 This builds the same image used for AWS Marketplace / Bedrock AgentCore Runtime, so anything working here will work identically there.
 
+## Private OpenAPI MCP
+
+Run the same image in a customer-managed ECS service, EKS workload, or other
+private container platform when the target API is internal or customer data
+must remain inside the organization's AWS boundary. Set the same variables as
+local development, but use private or internal URLs:
+
+```bash
+OPENAPI_URL=https://internal-api.example.com/openapi.json
+API_BASE_URL=https://internal-api.example.com/api
+OPENAPI_AUTH_TOKEN=replace-with-a-secret-reference
+```
+
+In production, inject the token from AWS Secrets Manager or the container
+platform's secret integration rather than putting the literal token in a
+CloudFormation parameter, image, `.env` file, or source repository. Put the
+service behind the customer's internal load balancer, VPN, or authenticated
+gateway. The container is stateless and does not need a separate database.
+
+Private OpenAPI MCP is the right choice for private SaaS tenant APIs, internal
+CRM or ticketing systems, Kubernetes control planes, deployment platforms, and
+any API that is documented with Swagger/OpenAPI but should not be exposed to
+the public internet.
+
 ## AWS Marketplace And AgentCore Runtime
 
 1. Subscribe to **OpenAPI MCP** in AWS Marketplace and select the
@@ -96,10 +125,10 @@ the Region where you want the AgentCore runtime before creating the stack.
    invoke it with an AWS-authenticated AgentCore client. The runtime boundary
    uses IAM/SigV4; do not put AWS credentials in an MCP JSON-RPC message.
 
-For a CMS API, use the CMS's OpenAPI document and API base URL. If the goal is
-for an agent to understand CMS publishing, permissions, or other native CMS
-workflows, use [CMS MCP AgentCore](https://github.com/techcto/openada/tree/main/devops/agentcore)
-instead.
+For a CMS API, use the CMS's OpenAPI document and API base URL. This works for
+Solodev, WordPress, Drupal, and other platforms that publish a usable contract.
+If a CMS provides a native MCP server with richer publishing or permission
+workflows, compare that integration with generated OpenAPI tools.
 
 ### AgentCore console smoke test
 
