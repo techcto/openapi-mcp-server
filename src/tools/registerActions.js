@@ -68,11 +68,15 @@ async function executeRequest(baseUrl, path, method, options = {}) {
 
   const body = options.body ?? {};
 
-  // Default to application/json
   const finalHeaders = {
-    'Content-Type': 'application/json',
     ...stripReservedHeaders(headers)
   };
+
+  // Content-Type describes a request body. Sending it on bodyless GET/HEAD
+  // requests can select the wrong authentication path in upstream gateways.
+  if (['post', 'put', 'patch'].includes(method.toLowerCase())) {
+    finalHeaders['Content-Type'] ||= 'application/json';
+  }
 
   if (bearerToken && typeof bearerToken === 'string') {
     finalHeaders['Authorization'] = `Bearer ${bearerToken}`;
@@ -352,11 +356,16 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
         pathParams.push({ name: match[1], required: true });
       }
 
-      // Generate semantic tool names based on the actual path structure
-      let toolName;
+      // Explicit operationIds are the API's authoritative MCP contract for
+      // workflow endpoints whose meaning is richer than generic CRUD.
+      let toolName = typeof operation.operationId === 'string'
+        ? operation.operationId.trim()
+        : '';
       const resourceName = path.split('/')[1]; // e.g., "asset_category", "datatable", "user"
 
-      if (method.toLowerCase() === 'get' && pathParams.length === 0) {
+      if (toolName !== '') {
+        toolName = toolName.replace(/_/g, '-');
+      } else if (method.toLowerCase() === 'get' && pathParams.length === 0) {
         toolName = `search-${resourceName}`;
       } else if (method.toLowerCase() === 'post' && pathParams.length === 0) {
         toolName = `create-${resourceName}`;
@@ -437,10 +446,12 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
           console.log(`🚀 ${toolName}: ${method.toUpperCase()} ${finalBaseUrl}${actualPath}`);
 
           const headers = {
-            'Content-Type': 'application/json',
             ...stripReservedHeaders(extraHeaders)
           };
-          const contentType = headers['Content-Type'];
+          if (methodLower !== 'get' && methodLower !== 'head') {
+            headers['Content-Type'] ||= 'application/json';
+          }
+          const contentType = headers['Content-Type'] || '';
 
           const params = explicitParams || (methodLower === 'get' ? rest : undefined);
 
