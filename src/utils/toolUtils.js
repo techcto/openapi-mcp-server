@@ -1,59 +1,12 @@
 import { isToolAllowed } from "../config/config.js";
 
-// Utility functions for tool management
+import { z } from "zod";
 
-const mapZodType = (definition = {}) => {
-  const typeName = definition.typeName || '';
-
-  switch (typeName) {
-    case 'ZodString':
-      return { type: 'string' };
-    case 'ZodNumber':
-      return { type: 'number' };
-    case 'ZodBoolean':
-      return { type: 'boolean' };
-    case 'ZodEnum':
-      return { type: 'string', enum: Array.isArray(definition.values) ? definition.values : [] };
-    case 'ZodOptional':
-    case 'ZodDefault':
-      return mapZodType(definition.innerType?._def || definition.type?._def || {});
-    default:
-      return { type: 'string' };
-  }
-};
-
+// Use Zod's public JSON Schema API so nested records, constraints and optional
+// fields match the validators actually executed by the MCP runtime.
 const buildInputSchema = (shape = {}) => {
-  const properties = {};
-  const required = [];
-
-  for (const [key, field] of Object.entries(shape)) {
-    const fieldDef = field?._def || {};
-    properties[key] = {
-      ...mapZodType(fieldDef),
-      description:
-        typeof field.description === 'string'
-          ? field.description
-          : typeof fieldDef.description === 'string'
-            ? fieldDef.description
-            : `Parameter: ${key}`
-    };
-
-    if (fieldDef.defaultValue !== undefined) {
-      properties[key].default =
-        typeof fieldDef.defaultValue === 'function' ? fieldDef.defaultValue() : fieldDef.defaultValue;
-    }
-
-    if (fieldDef.typeName !== 'ZodOptional' && fieldDef.typeName !== 'ZodDefault') {
-      required.push(key);
-    }
-  }
-
-  return {
-    type: "object",
-    properties,
-    ...(required.length ? { required } : {}),
-    additionalProperties: true
-  };
+  const { $schema, ...schema } = z.toJSONSchema(z.object(shape).passthrough(), { target: 'draft-7' });
+  return schema;
 };
 
 const normalizeToolResult = (result) => {

@@ -161,7 +161,7 @@ export const handleValidationError = (err, id) => {
       error: {
         code: -32602,
         message: "Invalid params",
-        data: err.errors
+        data: err.issues
       }
     };
   }
