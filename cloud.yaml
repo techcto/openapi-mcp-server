@@ -1,0 +1,39 @@
+catalog-item:
+  name: openapi-mcp
+version:
+  description: Per-API OpenAPI MCP on an existing AppHub Fargate cluster
+  version_status: draft
+  resource_url: https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/${Git.Version}/apphub-ecs.yaml
+  resource_params: |
+    engine: fargate
+    required_outputs:
+      - Cluster
+      - VpcId
+      - ListenerArn
+      - LoadBalancerSecurityGroup
+      - ServiceSubnets
+    build:
+      - ParameterKey: CpuArchitecture
+        ParameterValue: X86_64
+      - ParameterKey: Cluster
+        ParameterValue: '${Cluster.Outputs.Cluster}'
+      - ParameterKey: VPCID
+        ParameterValue: '${Cluster.Outputs.VpcId}'
+      - ParameterKey: Subnets
+        ParameterValue: '${Cluster.Outputs.ServiceSubnets}'
+      - ParameterKey: ExistingListenerArn
+        ParameterValue: '${Cluster.Outputs.ListenerArn}'
+      - ParameterKey: LoadBalancerSecurityGroupId
+        ParameterValue: '${Cluster.Outputs.LoadBalancerSecurityGroup}'
+      - ParameterKey: HostName
+        ParameterValue: '${Deployment.hostname}'
+    distribution:
+      cloud:
+        images:
+          mcp:
+            source: '709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64'
+            parameter: CloudImageMcp
+            verify_revision: true
+    features:
+      protocol: https
+      ingress: '${Deployment.DeploymentValues.stack_outputs.McpUrl}'
