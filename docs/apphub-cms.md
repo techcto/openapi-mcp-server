@@ -12,7 +12,7 @@ AppHub. Use an unused listener priority. Tasks need outbound access to ECR, Secr
 Manager, CloudWatch, and the CMS. Set CpuArchitecture to match the image. The Marketplace image is ARM64; the Cloud catalog currently pins the already published CMS 11.12.91 MCP component (X86_64) by digest, so no CMS rebuild or additional upstream pull grant is needed.
 
 Connection settings come from the selected CMS's HTTPS origin. The upstream schema
-is `/public/api/system/swagger.json`; tool requests use `/api/v2`. This intentionally
+is `/api/v2/system/swagger.json`; tool requests use `/api/v2`. This intentionally
 does not depend on the CMS-hosted `/mcp/openapi.json`, which is disabled when the
 CMS's optional built-in runtime is off.
 

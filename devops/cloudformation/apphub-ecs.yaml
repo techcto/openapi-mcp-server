@@ -105,7 +105,7 @@ Resources:
             - {Name: HOST, Value: '0.0.0.0'}
             - {Name: PORT, Value: '8000'}
             - {Name: PUBLIC_BASE_URL, Value: !Sub 'https://${HostHeader}'}
-            - {Name: OPENAPI_URL, Value: !Sub '${CmsBaseUrl}/public/api/system/swagger.json'}
+            - {Name: OPENAPI_URL, Value: !Sub '${CmsBaseUrl}/api/v2/system/swagger.json'}
             - {Name: API_BASE_URL, Value: !Sub '${CmsBaseUrl}/api/v2'}
             - {Name: REQUIRE_AUTH, Value: 'true'}
             - {Name: MCP_ALLOWED_TOOLS, Value: !Ref AllowedTools}
