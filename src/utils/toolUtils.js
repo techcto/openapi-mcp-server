@@ -45,7 +45,7 @@ export const getToolsArray = (toolMap) => {
       inputSchema: buildInputSchema(tool.schema?.shape || {})
     }));
   } else {
-    console.error("toolMap is not iterable:", typeof toolMap, toolMap);
+    console.error("toolMap is not iterable");
   }
   
   return tools;
@@ -134,7 +134,7 @@ export const executeTool = async (tool, parsedArgs) => {
       result: normalizeToolResult(result)
     };
   } catch (err) {
-    console.error("❌ Error invoking tool:", err);
+    console.error("❌ Error invoking tool:");
     return {
       success: false,
       error: err

@@ -64,7 +64,7 @@ class Logger {
   toolExecution(toolName, args, success = true) {
     const emoji = success ? '✅' : '❌';
     const level = success ? 'INFO' : 'ERROR';
-    this[level.toLowerCase()](`${emoji} Tool execution: ${toolName}`, { args, success });
+    this[level.toLowerCase()](`${emoji} Tool execution: ${toolName}`, { success });
   }
 
   connectionEvent(event, connectionId, details = {}) {

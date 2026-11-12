@@ -35,7 +35,7 @@ export const setupLegacy = (app, toolMap) => {
         tools: tools,
       });
     } catch (err) {
-      console.error("\u274c Error listing tools:", err);
+      console.error("\u274c Error listing tools:");
       res.status(500).json({
         error: {
           code: -1,
@@ -51,7 +51,6 @@ export const setupLegacy = (app, toolMap) => {
 
     console.log("\ud83d\udd27 MCP Tool call request received:");
     console.log("\ud83d\udd27 Tool name:", name);
-    console.log("\ud83d\udce6 Arguments:", args);
 
     if (name === "list-tools") {
       const tools = getToolsArray(toolMap).map(tool => ({
@@ -86,7 +85,6 @@ export const setupLegacy = (app, toolMap) => {
       const schemaPath = getSchemaPath(args);
       const parsed = parseToolArguments(tool, args, schemaPath);
 
-      console.log("\u2705 Parsed and validated arguments:", parsed);
 
       const execution = await executeTool(tool, parsed);
 
@@ -96,7 +94,7 @@ export const setupLegacy = (app, toolMap) => {
         throw execution.error;
       }
     } catch (err) {
-      console.error("\u274c Error invoking tool:", err);
+      console.error("\u274c Error invoking tool:");
 
       const validationError = handleValidationError(err, null);
       if (validationError) {
@@ -124,7 +122,6 @@ export const setupLegacy = (app, toolMap) => {
 
     console.log("\ud83d\udce5 Legacy tool request:");
     console.log("\ud83d\udd27 Tool name:", name);
-    console.log("\ud83d\udce6 Raw arguments:", args);
 
     if (name === "list-tools") {
       const tools = getToolsArray(toolMap).map(tool => ({
@@ -147,7 +144,6 @@ export const setupLegacy = (app, toolMap) => {
       const schemaPath = getSchemaPath(args);
       const parsed = parseToolArguments(tool, args, schemaPath);
 
-      console.log("\u2705 Parsed and validated arguments:", parsed);
 
       const execution = await executeTool(tool, parsed);
 
@@ -157,7 +153,7 @@ export const setupLegacy = (app, toolMap) => {
         throw execution.error;
       }
     } catch (err) {
-      console.error("\u274c Error invoking tool:", err);
+      console.error("\u274c Error invoking tool:");
 
       const validationError = handleValidationError(err, null);
       if (validationError) {

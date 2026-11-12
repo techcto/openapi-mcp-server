@@ -122,7 +122,7 @@ const handleToolCall = async (message, toolMap) => {
       throw execution.error;
     }
   } catch (err) {
-    console.error("Tool execution error:", err);
+    console.error("Tool execution error:");
     return {
       jsonrpc: "2.0",
       id: message.id,

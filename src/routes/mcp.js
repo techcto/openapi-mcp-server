@@ -1,3 +1,4 @@
+import { trackRequest } from "../utils/activity.js";
 // setupMCP.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
@@ -15,6 +16,7 @@ export const setupMCP = (app, toolMap, mcpServer) => {
   }
 
   app.post("/mcp", async (req, res) => {
+    trackRequest(req, res, toolMap, "streamable-http");
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
     try {
@@ -24,7 +26,7 @@ export const setupMCP = (app, toolMap, mcpServer) => {
         transport.close();
       });
     } catch (err) {
-      console.error("❌ Failed to handle MCP request", err);
+      console.error("❌ Failed to handle MCP request");
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: "2.0",

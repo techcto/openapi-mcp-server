@@ -1,3 +1,4 @@
+import { activity, trackRequest } from '../utils/activity.js';
 import { CONFIG } from '../config/config.js';
 import { connectionManager } from '../services/connectionManager.js';
 import { processMcpMessage } from '../services/mcpMessageHandler.js';
@@ -16,6 +17,8 @@ export const setupSSE = (app, toolMap) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    activity('connected', { transport: 'sse' });
+
     // Set SSE headers
     res.writeHead(200, CONFIG.headers.sse);
 
@@ -23,7 +26,11 @@ export const setupSSE = (app, toolMap) => {
     const connection = connectionManager.addConnection(connectionId, res);
     const keepAlive = connectionManager.setupKeepAlive(connectionId);
 
+    let closed = false;
     const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      activity('disconnected', { transport: 'sse' });
       clearInterval(keepAlive);
       connectionManager.removeConnection(connectionId);
     };
@@ -45,14 +52,14 @@ export const setupSSE = (app, toolMap) => {
   // POST fallback for tools/call via HTTP (used by Postman or Claude)
   app.post('/sse', async (req, res) => {
     const message = req.body;
-    console.log("📨 Received MCP message via POST /sse:", JSON.stringify(message, null, 2));
+    trackRequest(req, res, toolMap, "sse");
 
     try {
       const response = await processMcpMessage(message, toolMap);
-      console.log("📤 Sending response via POST /sse:", JSON.stringify(response, null, 2));
+
       res.json(response);
     } catch (err) {
-      console.error("❌ Error handling MCP message via POST /sse:", err);
+      console.error("❌ Error handling MCP message via POST /sse:");
       res.status(500).json({
         jsonrpc: "2.0",
         id: message?.id || null,

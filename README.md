@@ -469,3 +469,11 @@ MIT
 ## AppHub/Fargate and EKS deployment
 
 See the [AppHub/Fargate and EKS quickstart](docs/fargate-eks-quickstart.md) for an existing-cluster Fargate template, private EKS manifests, secrets, image access, and per-CMS isolation.
+
+### Runtime activity
+
+CloudWatch receives structured `mcp.activity` events for HTTP requests and SSE
+connections. Events contain correlation IDs, method/tool names, HTTP status and
+duration. Arguments, results and authentication tokens are excluded. Portal's
+service detail can tail this metadata on demand; leaving the tab pauses its live
+view. MCP resource subscriptions are not advertised by this runtime.
