@@ -2,6 +2,7 @@ import morgan from "morgan";
 import cors from "cors";
 import express from "express";
 import { CONFIG } from '../config/config.js';
+import { setupHealth } from '../routes/health.js';
 import { verifySigv4Token, SIGV4_TOKEN_PREFIX } from '../utils/sigv4Auth.js';
 
 /**
@@ -180,6 +181,9 @@ export const setupMiddleware = (app) => {
   app.use(corsMiddleware);
   app.use(jsonParser);
   
+  // Infrastructure probes expose liveness only; all application routes require authentication.
+  setupHealth(app);
+
   // Custom middleware
   app.use(authenticateRequest);
   app.use(validateJsonRpc);

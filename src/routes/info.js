@@ -37,18 +37,4 @@ export const setupInfo = (app, toolMap) => {
     });
   });
 
-  // Health check
-  app.get("/health", (req, res) => {
-    res.json({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      toolCount: getToolCount(toolMap),
-      activeConnections: connectionManager.getConnectionCount?.() ?? "n/a"
-    });
-  });
-
-  // Bedrock AgentCore Runtime health check contract: GET /ping -> {"status": "Healthy"}
-  app.get("/ping", (req, res) => {
-    res.json({ status: "Healthy" });
-  });
 };
