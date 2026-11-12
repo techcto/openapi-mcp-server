@@ -15,7 +15,7 @@ version:
       - {ParameterKey: HostHeader, ParameterValue: '${Deployment.hostname}'}
       - {ParameterKey: ListenerPriority, ParameterValue: '${Deployment.ListenerPriority}'}
       - ParameterKey: CloudImageMcp
-        ParameterValue: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms@sha256:d9cb8225f2933d1ae9d6c910424f0ad9fc0250e0af0486cb538637508a9c9ff3
+        ParameterValue: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms:mcp-${Git.Version}
         UpdateOnUpgrade: true
       - {ParameterKey: CpuArchitecture, ParameterValue: X86_64}
     required_outputs: [VpcId, Cluster, ListenerArn, LoadBalancerSecurityGroup, ServiceSubnets, LoadBalancerDnsName]
@@ -27,5 +27,5 @@ version:
       cloud:
         images:
           mcp:
-            source: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms@sha256:d9cb8225f2933d1ae9d6c910424f0ad9fc0250e0af0486cb538637508a9c9ff3
+            source: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms:mcp-${Git.Version}
             parameter: CloudImageMcp
