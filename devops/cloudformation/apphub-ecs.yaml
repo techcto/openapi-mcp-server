@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OpenAPI MCP as an independently managed service on an existing Fargate AppHub.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: {default: Existing AppHub}
+        Parameters: [VpcId, Cluster, ListenerArn, LoadBalancerSecurityGroup, ServiceSubnets, AssignPublicIp]
+      - Label: {default: MCP service}
+        Parameters: [HostHeader, ListenerPriority, CloudImageMcp, CpuArchitecture, DesiredCount, Cpu, Memory]
+      - Label: {default: Selected CMS connection}
+        Parameters: [CmsBaseUrl, CmsApiToken, McpBearerToken, AllowedTools]
+Parameters:
+  VpcId: {Type: 'AWS::EC2::VPC::Id'}
+  Cluster: {Type: String, MinLength: 1}
+  ListenerArn:
+    Type: String
+    AllowedPattern: '^arn:aws[a-z-]*:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:listener/app/.+$'
+    Description: Existing HTTPS listener with a certificate covering HostHeader.
+  LoadBalancerSecurityGroup: {Type: 'AWS::EC2::SecurityGroup::Id'}
+  ServiceSubnets: {Type: 'List<AWS::EC2::Subnet::Id>'}
+  AssignPublicIp: {Type: String, Default: DISABLED, AllowedValues: [ENABLED, DISABLED]}
+  HostHeader:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]+[a-z0-9]$'
+    Description: Dedicated MCP hostname. Point its DNS to the existing AppHub load balancer.
+  ListenerPriority: {Type: Number, MinValue: 1, MaxValue: 50000}
+  CloudImageMcp:
+    Type: String
+    Description: Versioned OpenAPI MCP ECR image. Cloud supplies the approved catalog image.
+    AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9/_-]+(@sha256:[a-f0-9]{64}|:[A-Za-z0-9_.-]+)$'
+  CpuArchitecture:
+    Type: String
+    Default: ARM64
+    AllowedValues: [ARM64, X86_64]
+    Description: Must match the selected immutable image manifest.
+  CmsBaseUrl:
+    Type: String
+    AllowedPattern: '^https://[a-z0-9][a-z0-9.-]+[a-z0-9]$'
+    Description: Selected CMS HTTPS origin, without a trailing slash. Not the public website URL.
+  CmsApiToken:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    AllowedPattern: '^[A-Za-z0-9._~+/=|-]+$'
+    Description: Dedicated CMS API bearer token with only the permissions required by the selected tools.
+  McpBearerToken:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    AllowedPattern: '^[A-Za-z0-9._~+/=-]+$'
+    Description: Separate bearer token used by MCP clients; never reuse the CMS API token.
+  AllowedTools:
+    Type: String
+    MinLength: 1
+    Description: Explicit comma-separated allowlist of MCP tool names.
+  DesiredCount: {Type: Number, Default: 1, MinValue: 1, MaxValue: 10}
+  Cpu: {Type: String, Default: '256', AllowedValues: ['256']}
+  Memory: {Type: String, Default: '512', AllowedValues: ['512', '1024', '2048']}
+Resources:
+  Credentials:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Dedicated upstream and client credentials for this MCP installation.
+      SecretString: !Sub '{"cms_api_token":"${CmsApiToken}","mcp_bearer_token":"${McpBearerToken}"}'
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties: {RetentionInDays: 7}
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: MCP traffic from the shared AppHub ALB only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 8000, ToPort: 8000, SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup}
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - {Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: 'sts:AssumeRole'}
+      ManagedPolicyArns: [!Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy']
+      Policies:
+        - PolicyName: InstallationCredentials
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref Credentials}
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      RuntimePlatform: {CpuArchitecture: !Ref CpuArchitecture, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: mcp
+          Image: !Ref CloudImageMcp
+          Essential: true
+          PortMappings: [{ContainerPort: 8000, Protocol: tcp}]
+          Environment:
+            - {Name: NODE_ENV, Value: production}
+            - {Name: HOST, Value: '0.0.0.0'}
+            - {Name: PORT, Value: '8000'}
+            - {Name: PUBLIC_BASE_URL, Value: !Sub 'https://${HostHeader}'}
+            - {Name: OPENAPI_URL, Value: !Sub '${CmsBaseUrl}/public/api/system/swagger.json'}
+            - {Name: API_BASE_URL, Value: !Sub '${CmsBaseUrl}/api/v2'}
+            - {Name: REQUIRE_AUTH, Value: 'true'}
+            - {Name: MCP_ALLOWED_TOOLS, Value: !Ref AllowedTools}
+          Secrets:
+            - {Name: OPENAPI_AUTH_TOKEN, ValueFrom: !Sub '${Credentials}:cms_api_token::'}
+            - {Name: MCP_AUTH_TOKEN, ValueFrom: !Sub '${Credentials}:mcp_bearer_token::'}
+          HealthCheck:
+            Command: [CMD-SHELL, 'node -e "require(''http'').get(''http://127.0.0.1:8000/health'',r=>process.exit(r.statusCode===200?0:1)).on(''error'',()=>process.exit(1))"']
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 30
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref Logs
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: mcp
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 8000
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /health
+      Matcher: {HttpCode: '200'}
+      TargetGroupAttributes: [{Key: deregistration_delay.timeout_seconds, Value: '15'}]
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ListenerArn
+      Priority: !Ref ListenerPriority
+      Conditions: [{Field: host-header, Values: [!Ref HostHeader]}]
+      Actions: [{Type: forward, TargetGroupArn: !Ref TargetGroup}]
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ListenerRule
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        DeploymentCircuitBreaker: {Enable: true, Rollback: true}
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          Subnets: !Ref ServiceSubnets
+          SecurityGroups: [!Ref SecurityGroup]
+      LoadBalancers: [{ContainerName: mcp, ContainerPort: 8000, TargetGroupArn: !Ref TargetGroup}]
+Outputs:
+  Url: {Value: !Sub 'https://${HostHeader}/mcp'}
+  McpUrl: {Value: !Sub 'https://${HostHeader}/mcp'}
+  ServiceArn: {Value: !Ref Service}

@@ -122,10 +122,13 @@ jobs:
       # the bucket policy must grant public s3:GetObject on cloudformation/*.
       - name: Upload OpenAPI MCP CFTs to S3
         run: |
-          for template in agentcore-runtime private-ecs; do
+          for template in agentcore-runtime private-ecs apphub-ecs; do
             cp "devops/cloudformation/${template}.yaml" "/tmp/${template}.yaml"
             sed -i "s/{RELEASE_VERSION}/${{ steps.version.outputs.value }}/g" "/tmp/${template}.yaml"
             aws s3 cp "/tmp/${template}.yaml" \
               "s3://openapi-mcp/cloudformation/${template}.yaml" \
+              --acl public-read
+            aws s3 cp "/tmp/${template}.yaml" \
+              "s3://openapi-mcp/cloudformation/${{ steps.version.outputs.value }}/${template}.yaml" \
               --acl public-read
           done
