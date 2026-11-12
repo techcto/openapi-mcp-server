@@ -11,7 +11,7 @@ The template accepts the standard AppHub outputs (`VpcId`, `Cluster`, `ListenerA
 `LoadBalancerSecurityGroup`, `ServiceSubnets`). The existing HTTPS listener must
 have a certificate covering the MCP hostname, and that hostname must resolve to
 AppHub. Use an unused listener priority. Tasks need outbound access to ECR, Secrets
-Manager, CloudWatch, and the CMS. Set CpuArchitecture to match the image. The Marketplace image is ARM64; the Cloud catalog currently pins the already published CMS 11.12.91 MCP component (X86_64) by digest, so no CMS rebuild or additional upstream pull grant is needed.
+Manager, CloudWatch, and the CMS. Set CpuArchitecture to match the image. The Marketplace image is ARM64; the Cloud catalog currently pins the already published CMS 11.12.91 MCP component (X86_64) by digest, so no new MCP image build or additional upstream pull grant is needed. The selected CMS must run 11.12.92 or later for the authenticated schema route.
 
 Connection settings come from the selected CMS's HTTPS origin. The upstream schema
 is `/api/v2/system/swagger.json`; tool requests use `/api/v2`. This intentionally
