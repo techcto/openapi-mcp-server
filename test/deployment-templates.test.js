@@ -39,3 +39,12 @@ test('Marketplace delivery descriptors cover AgentCore, AppHub Fargate and EKS',
  assert.equal(docs[1].spec.type,'ClusterIP');
  assert.equal(docs[0].spec.template.spec.containers[0].env.find(e=>e.name==='REQUIRE_AUTH').value,'true');
 });
+test('CMS product owns its credentials and reuses the generic AppHub runtime',()=>{
+ const cms=yaml.load(read('devops/cloudformation/cms-apphub-ecs.yaml'),{schema:yaml.DEFAULT_SCHEMA.extend([...tags,new yaml.Type('!Join',{kind:'sequence',construct:value=>({Join:value})})])});
+ assert.equal(cms.Resources.Runtime.Type,'AWS::CloudFormation::Stack');
+ assert.match(cms.Resources.Runtime.Properties.TemplateURL,/cloudformation\/\{RELEASE_VERSION\}\/apphub-ecs.yaml$/);
+ assert.equal(cms.Parameters.CmsApiToken.NoEcho,true);
+ assert.equal(cms.Parameters.McpBearerToken.NoEcho,true);
+ assert.deepEqual(cms.Resources.Runtime.Properties.Parameters.ApiAuthSecretArn,{Ref:'CmsApiCredential'});
+ assert.equal(Object.values(cms.Resources).some(r=>r.Type==='AWS::ECS::Cluster'),false);
+});

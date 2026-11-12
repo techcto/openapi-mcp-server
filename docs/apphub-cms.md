@@ -1,9 +1,11 @@
 # CMS MCP on AppHub
 
-This product launches an independent CloudFormation stack next to a selected CMS.
+This product launches an independent CloudFormation root stack next to a selected CMS. Its version-pinned nested stack reuses the generic OpenAPI MCP AppHub service; the root owns its credentials.
 It does not set `EnableMcp`, replace CMS tasks, create a cluster, or install AgentCore.
 Its own stack owns the ECS service, task definition, credentials, logs, target group,
 and hostname rule. Deleting it leaves the selected CMS and shared AppHub intact.
+
+The CMS product base template is `cms-apphub-ecs.yaml`; its catalog manifest is `devops/catalog/cms-mcp-serverless.cloud.yaml`. The generic root `cloud.yaml` remains the OpenAPI MCP product. Both templates are published by the same release pipeline.
 
 The template accepts the standard AppHub outputs (`VpcId`, `Cluster`, `ListenerArn`,
 `LoadBalancerSecurityGroup`, `ServiceSubnets`). The existing HTTPS listener must

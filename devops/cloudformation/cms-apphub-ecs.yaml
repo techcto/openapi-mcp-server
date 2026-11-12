@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Independent CMS MCP product on AppHub, using the standard OpenAPI MCP service template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: {default: Existing AppHub}
+        Parameters: [VpcId, Cluster, ListenerArn, LoadBalancerSecurityGroup, ServiceSubnets, AssignPublicIp]
+      - Label: {default: MCP service}
+        Parameters: [HostHeader, ListenerPriority, CloudImageMcp, CpuArchitecture, DesiredCount]
+      - Label: {default: Selected CMS connection}
+        Parameters: [CmsBaseUrl, CmsApiToken, McpBearerToken, AllowedTools]
+Parameters:
+  VpcId: {Type: 'AWS::EC2::VPC::Id'}
+  Cluster: {Type: String, MinLength: 1}
+  ListenerArn:
+    Type: String
+    AllowedPattern: '^arn:aws[a-z-]*:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:listener/app/.+$'
+    Description: Existing HTTPS listener with a certificate covering HostHeader.
+  LoadBalancerSecurityGroup: {Type: 'AWS::EC2::SecurityGroup::Id'}
+  ServiceSubnets: {Type: 'List<AWS::EC2::Subnet::Id>'}
+  AssignPublicIp: {Type: String, Default: DISABLED, AllowedValues: [ENABLED, DISABLED]}
+  HostHeader:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]+[a-z0-9]$'
+  ListenerPriority: {Type: Number, MinValue: 1, MaxValue: 50000}
+  CloudImageMcp:
+    Type: String
+    Description: Version-pinned approved ECR image.
+    AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9/_-]+(@sha256:[a-f0-9]{64}|:[A-Za-z0-9_.-]+)$'
+  CpuArchitecture: {Type: String, Default: X86_64, AllowedValues: [ARM64, X86_64]}
+  CmsBaseUrl:
+    Type: String
+    AllowedPattern: '^https://[a-z0-9][a-z0-9.-]+[a-z0-9]$'
+    Description: Selected CMS HTTPS origin without a trailing slash, not its public website URL.
+  CmsApiToken:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: Dedicated CMS API token with only the required user permissions.
+  McpBearerToken:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Separate random bearer token used by MCP clients.
+  AllowedTools:
+    Type: String
+    MinLength: 1
+    Description: Explicit comma-separated tool allowlist.
+  DesiredCount: {Type: Number, Default: 1, MinValue: 1, MaxValue: 10}
+Resources:
+  CmsApiCredential:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Dedicated upstream CMS API token for this MCP installation.
+      SecretString: !Ref CmsApiToken
+  McpClientCredential:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: MCP client bearer token for this installation.
+      SecretString: !Ref McpBearerToken
+  Runtime:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/{RELEASE_VERSION}/apphub-ecs.yaml
+      Parameters:
+        CloudImageMcp: !Ref CloudImageMcp
+        CpuArchitecture: !Ref CpuArchitecture
+        Cluster: !Ref Cluster
+        VPCID: !Ref VpcId
+        Subnets: !Join [',', !Ref ServiceSubnets]
+        LoadBalancerSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        ExistingListenerArn: !Ref ListenerArn
+        HostName: !Ref HostHeader
+        ListenerPriority: !Ref ListenerPriority
+        OpenApiUrl: !Sub '${CmsBaseUrl}/api/v2/system/swagger.json'
+        ApiBaseUrl: !Sub '${CmsBaseUrl}/api/v2'
+        ApiAuthSecretArn: !Ref CmsApiCredential
+        McpAuthSecretArn: !Ref McpClientCredential
+        AllowedTools: !Ref AllowedTools
+        AssignPublicIp: !Ref AssignPublicIp
+        DesiredCount: !Ref DesiredCount
+Outputs:
+  McpUrl: {Value: !GetAtt Runtime.Outputs.McpUrl}
+  HealthUrl: {Value: !GetAtt Runtime.Outputs.HealthUrl}
+  ServiceArn: {Value: !GetAtt Runtime.Outputs.ServiceArn}
