@@ -39,6 +39,7 @@ jobs:
           npm ci --ignore-scripts --omit=dev
           node test/deployment-templates.test.js
           node test/health-auth.test.js
+          python3 test/publisher-pull-policy.test.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -49,6 +50,9 @@ jobs:
 
       - name: Login to Amazon ECR
         run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${{ env.MP_AWS_ECR }}"
+
+      - name: Grant SpaceMade read-only access to the seller image
+        run: python3 devops/allow-cloud-pulls.py
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

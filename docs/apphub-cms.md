@@ -5,7 +5,7 @@ It does not set `EnableMcp`, replace CMS tasks, create a cluster, or install Age
 Its own stack owns the ECS service, task definition, credentials, logs, target group,
 and hostname rule. Deleting it leaves the selected CMS and shared AppHub intact.
 
-The CMS product base template is `cms-apphub-ecs.yaml`; its catalog manifest is `devops/catalog/cms-mcp-serverless.cloud.yaml`. The generic root `cloud.yaml` remains the OpenAPI MCP product. Both templates are published by the same release pipeline.
+The CMS preset base template is `cms-apphub-ecs.yaml`. The root `cloud.yaml` contains both `openapi-mcp` and `cms-mcp-serverless` under `catalog-items`; each linked catalog item imports only its own entry. The MCP repository publishes both templates and the `solodev/openapi-mcp` images. A new MCP tag updates this independent product without a CMS tag or CMS stack update.
 
 The template accepts the standard AppHub outputs (`VpcId`, `Cluster`, `ListenerArn`,
 `LoadBalancerSecurityGroup`, `ServiceSubnets`). The existing HTTPS listener must

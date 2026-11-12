@@ -23,7 +23,7 @@ test('MCP requires authentication and uses installation secrets rather than temp
  assert.equal(template.Parameters.McpAuthSecretArn.Default,undefined);
 });
 test('Cloud image architecture matches the separately published AMD64 artifact',()=>{
- const manifest=yaml.load(read('cloud.yaml'));const params=yaml.load(manifest.version.resource_params);
+ const manifest=yaml.load(read('cloud.yaml'))['catalog-items']['openapi-mcp'];const params=yaml.load(manifest.version.resource_params);
  assert.equal(manifest.version.version_status,'draft');
  assert.equal(params.build.find(p=>p.ParameterKey==='CpuArchitecture').ParameterValue,'X86_64');
  assert.match(params.distribution.cloud.images.mcp.source,/\$\{Git.Version\}-amd64$/);
@@ -47,4 +47,13 @@ test('CMS product owns its credentials and reuses the generic AppHub runtime',()
  assert.equal(cms.Parameters.McpBearerToken.NoEcho,true);
  assert.deepEqual(cms.Resources.Runtime.Properties.Parameters.ApiAuthSecretArn,{Ref:'CmsApiCredential'});
  assert.equal(Object.values(cms.Resources).some(r=>r.Type==='AWS::ECS::Cluster'),false);
+});
+
+test('CMS catalog product consumes the independently released MCP image',()=>{
+ const products=yaml.load(read('cloud.yaml'))['catalog-items'];
+ const params=products['cms-mcp-serverless'].version.resource_params;
+ assert.deepEqual(Object.keys(products),['openapi-mcp','cms-mcp-serverless']);
+ assert.match(params.distribution.cloud.images.mcp.source,/solodev\/openapi-mcp:\$\{Git.Version\}-amd64$/);
+ assert.equal(params.distribution.cloud.images.mcp.verify_revision,true);
+ assert.equal(params.build.find(p=>p.ParameterKey==='CloudImageMcp').ParameterValue,params.distribution.cloud.images.mcp.source);
 });
