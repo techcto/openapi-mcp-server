@@ -1,123 +1,164 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: OpenAPI MCP as an independently managed service on an existing Fargate AppHub.
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label: {default: Existing AppHub}
-        Parameters: [VpcId, Cluster, ListenerArn, LoadBalancerSecurityGroup, ServiceSubnets, AssignPublicIp]
-      - Label: {default: MCP service}
-        Parameters: [HostHeader, ListenerPriority, CloudImageMcp, CpuArchitecture, DesiredCount, Cpu, Memory]
-      - Label: {default: Selected CMS connection}
-        Parameters: [CmsBaseUrl, CmsApiToken, McpBearerToken, AllowedTools]
+Description: OpenAPI MCP for one API on an existing AppHub ECS/Fargate cluster and HTTPS listener.
 Parameters:
-  VpcId: {Type: 'AWS::EC2::VPC::Id'}
-  Cluster: {Type: String, MinLength: 1}
-  ListenerArn:
-    Type: String
-    AllowedPattern: '^arn:aws[a-z-]*:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:listener/app/.+$'
-    Description: Existing HTTPS listener with a certificate covering HostHeader.
-  LoadBalancerSecurityGroup: {Type: 'AWS::EC2::SecurityGroup::Id'}
-  ServiceSubnets: {Type: 'List<AWS::EC2::Subnet::Id>'}
-  AssignPublicIp: {Type: String, Default: DISABLED, AllowedValues: [ENABLED, DISABLED]}
-  HostHeader:
-    Type: String
-    AllowedPattern: '^[a-z0-9][a-z0-9.-]+[a-z0-9]$'
-    Description: Dedicated MCP hostname. Point its DNS to the existing AppHub load balancer.
-  ListenerPriority: {Type: Number, MinValue: 1, MaxValue: 50000}
   CloudImageMcp:
     Type: String
-    Description: Versioned OpenAPI MCP ECR image. Cloud supplies the approved catalog image.
-    AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9/_-]+(@sha256:[a-f0-9]{64}|:[A-Za-z0-9_.-]+)$'
+    Description: Version-pinned subscribed Marketplace image URI; use the image supplied by your delivery option.
   CpuArchitecture:
     Type: String
     Default: ARM64
     AllowedValues: [ARM64, X86_64]
-    Description: Must match the selected immutable image manifest.
-  CmsBaseUrl:
+    Description: Must match the selected image. The OpenAPI MCP release image currently targets ARM64.
+  Cluster:
     Type: String
-    AllowedPattern: '^https://[a-z0-9][a-z0-9.-]+[a-z0-9]$'
-    Description: Selected CMS HTTPS origin, without a trailing slash. Not the public website URL.
-  CmsApiToken:
+    Description: Existing AppHub ECS cluster name or ARN.
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: AppHub task subnets with access to the image registry, Secrets Manager, logs and target API.
+  LoadBalancerSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group attached to the existing AppHub load balancer.
+  ExistingListenerArn:
     Type: String
-    NoEcho: true
-    MinLength: 16
-    AllowedPattern: '^[A-Za-z0-9._~+/=|-]+$'
-    Description: Dedicated CMS API bearer token with only the permissions required by the selected tools.
-  McpBearerToken:
+    Description: Existing HTTPS Application Load Balancer listener ARN. Its certificate must cover HostName.
+  HostName:
     Type: String
-    NoEcho: true
-    MinLength: 32
-    AllowedPattern: '^[A-Za-z0-9._~+/=-]+$'
-    Description: Separate bearer token used by MCP clients; never reuse the CMS API token.
+    AllowedPattern: '^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+$'
+    Description: Unique MCP hostname already covered by the listener certificate; point DNS to the AppHub ALB.
+  ListenerPriority:
+    Type: Number
+    MinValue: 1
+    MaxValue: 50000
+    Description: Unused priority on the shared listener; AppHub should allocate it.
+  OpenApiUrl:
+    Type: String
+    AllowedPattern: '^https?://.+$'
+    Description: This installation's OpenAPI JSON/YAML URL, reachable from the task subnets.
+  ApiBaseUrl:
+    Type: String
+    AllowedPattern: '^https?://.+$'
+    Description: This installation's API base URL, reachable from the task subnets.
+  McpAuthSecretArn:
+    Type: String
+    AllowedPattern: '^arn:[^:]+:secretsmanager:[^:]+:[0-9]{12}:secret:.+$'
+    Description: Existing Secrets Manager secret containing the raw MCP bearer token, in this Region. Never put the token in this parameter.
+  ApiAuthSecretArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:[^:]+:secretsmanager:[^:]+:[0-9]{12}:secret:.+$'
+    Description: Optional existing secret containing the raw target API bearer token, in this Region.
+  SecretsKmsKeyArn:
+    Type: String
+    Default: ''
+    Description: Customer-managed KMS key ARN if the supplied secrets use one; omit for the default Secrets Manager key.
   AllowedTools:
     Type: String
-    MinLength: 1
-    Description: Explicit comma-separated allowlist of MCP tool names.
-  DesiredCount: {Type: Number, Default: 1, MinValue: 1, MaxValue: 10}
-  Cpu: {Type: String, Default: '256', AllowedValues: ['256']}
-  Memory: {Type: String, Default: '512', AllowedValues: ['512', '1024', '2048']}
+    Default: ''
+    Description: Optional comma-separated tool allowlist.
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    MaxValue: 10
+Conditions:
+  HasApiAuth: !Not [!Equals [!Ref ApiAuthSecretArn, '']]
+  HasSecretsKey: !Not [!Equals [!Ref SecretsKmsKeyArn, '']]
 Resources:
-  Credentials:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Description: Dedicated upstream and client credentials for this MCP installation.
-      SecretString: !Sub '{"cms_api_token":"${CmsApiToken}","mcp_bearer_token":"${McpBearerToken}"}'
   Logs:
     Type: AWS::Logs::LogGroup
-    Properties: {RetentionInDays: 7}
-  SecurityGroup:
+    Properties:
+      RetentionInDays: 14
+  ServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: MCP traffic from the shared AppHub ALB only.
-      VpcId: !Ref VpcId
+      GroupDescription: MCP traffic from the existing AppHub ALB only
+      VpcId: !Ref VPCID
       SecurityGroupIngress:
-        - {IpProtocol: tcp, FromPort: 8000, ToPort: 8000, SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup}
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroupId
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
   ExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - {Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: 'sts:AssumeRole'}
-      ManagedPolicyArns: [!Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy']
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
-        - PolicyName: InstallationCredentials
+        - PolicyName: ReadInstallationSecrets
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - {Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref Credentials}
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref McpAuthSecretArn
+                  - !If [HasApiAuth, !Ref ApiAuthSecretArn, !Ref 'AWS::NoValue']
+              - !If
+                - HasSecretsKey
+                - Effect: Allow
+                  Action: kms:Decrypt
+                  Resource: !Ref SecretsKmsKeyArn
+                  Condition:
+                    StringEquals:
+                      kms:ViaService: !Sub secretsmanager.${AWS::Region}.${AWS::URLSuffix}
+                - !Ref AWS::NoValue
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Cpu: !Ref Cpu
-      Memory: !Ref Memory
+      Cpu: '512'
+      Memory: '1024'
       NetworkMode: awsvpc
       RequiresCompatibilities: [FARGATE]
-      RuntimePlatform: {CpuArchitecture: !Ref CpuArchitecture, OperatingSystemFamily: LINUX}
+      RuntimePlatform:
+        CpuArchitecture: !Ref CpuArchitecture
+        OperatingSystemFamily: LINUX
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
       ContainerDefinitions:
         - Name: mcp
           Image: !Ref CloudImageMcp
           Essential: true
-          PortMappings: [{ContainerPort: 8000, Protocol: tcp}]
+          PortMappings:
+            - ContainerPort: 8000
           Environment:
-            - {Name: NODE_ENV, Value: production}
-            - {Name: HOST, Value: '0.0.0.0'}
             - {Name: PORT, Value: '8000'}
-            - {Name: PUBLIC_BASE_URL, Value: !Sub 'https://${HostHeader}'}
-            - {Name: OPENAPI_URL, Value: !Sub '${CmsBaseUrl}/api/v2/system/swagger.json'}
-            - {Name: API_BASE_URL, Value: !Sub '${CmsBaseUrl}/api/v2'}
+            - {Name: HOST, Value: '0.0.0.0'}
             - {Name: REQUIRE_AUTH, Value: 'true'}
+            - Name: PUBLIC_BASE_URL
+              Value: !Sub https://${HostName}
+            - {Name: OPENAPI_URL, Value: !Ref OpenApiUrl}
+            - {Name: API_BASE_URL, Value: !Ref ApiBaseUrl}
             - {Name: MCP_ALLOWED_TOOLS, Value: !Ref AllowedTools}
           Secrets:
-            - {Name: OPENAPI_AUTH_TOKEN, ValueFrom: !Sub '${Credentials}:cms_api_token::'}
-            - {Name: MCP_AUTH_TOKEN, ValueFrom: !Sub '${Credentials}:mcp_bearer_token::'}
+            - {Name: MCP_AUTH_TOKEN, ValueFrom: !Ref McpAuthSecretArn}
+            - !If
+              - HasApiAuth
+              - {Name: OPENAPI_AUTH_TOKEN, ValueFrom: !Ref ApiAuthSecretArn}
+              - !Ref AWS::NoValue
+            - !If
+              - HasApiAuth
+              - {Name: API_TOKEN, ValueFrom: !Ref ApiAuthSecretArn}
+              - !Ref AWS::NoValue
           HealthCheck:
             Command: [CMD-SHELL, 'node -e "require(''http'').get(''http://127.0.0.1:8000/health'',r=>process.exit(r.statusCode===200?0:1)).on(''error'',()=>process.exit(1))"']
             Interval: 30
             Timeout: 5
             Retries: 3
-            StartPeriod: 30
+            StartPeriod: 60
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -127,39 +168,49 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref VpcId
+      VpcId: !Ref VPCID
       Port: 8000
       Protocol: HTTP
       TargetType: ip
       HealthCheckPath: /health
       Matcher: {HttpCode: '200'}
-      TargetGroupAttributes: [{Key: deregistration_delay.timeout_seconds, Value: '15'}]
   ListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref ListenerArn
+      ListenerArn: !Ref ExistingListenerArn
       Priority: !Ref ListenerPriority
-      Conditions: [{Field: host-header, Values: [!Ref HostHeader]}]
-      Actions: [{Type: forward, TargetGroupArn: !Ref TargetGroup}]
+      Conditions:
+        - Field: host-header
+          Values: [!Ref HostName]
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
   Service:
     Type: AWS::ECS::Service
     DependsOn: ListenerRule
     Properties:
       Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
       DesiredCount: !Ref DesiredCount
-      TaskDefinition: !Ref TaskDefinition
+      HealthCheckGracePeriodSeconds: 90
       DeploymentConfiguration:
         DeploymentCircuitBreaker: {Enable: true, Rollback: true}
-        MinimumHealthyPercent: 100
-        MaximumPercent: 200
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: !Ref AssignPublicIp
-          Subnets: !Ref ServiceSubnets
-          SecurityGroups: [!Ref SecurityGroup]
-      LoadBalancers: [{ContainerName: mcp, ContainerPort: 8000, TargetGroupArn: !Ref TargetGroup}]
+          Subnets: !Ref Subnets
+          SecurityGroups: [!GetAtt ServiceSecurityGroup.GroupId]
+      LoadBalancers:
+        - ContainerName: mcp
+          ContainerPort: 8000
+          TargetGroupArn: !Ref TargetGroup
 Outputs:
-  Url: {Value: !Sub 'https://${HostHeader}/mcp'}
-  McpUrl: {Value: !Sub 'https://${HostHeader}/mcp'}
-  ServiceArn: {Value: !Ref Service}
+  McpUrl:
+    Value: !Sub https://${HostName}/mcp
+  HealthUrl:
+    Value: !Sub https://${HostName}/health
+  ServiceArn:
+    Value: !Ref Service
+  ServiceSecurityGroupId:
+    Value: !GetAtt ServiceSecurityGroup.GroupId

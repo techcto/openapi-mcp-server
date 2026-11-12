@@ -465,3 +465,7 @@ cft.sh                        # local CloudFormation test-deploy helper
 ## License
 
 MIT
+
+## AppHub/Fargate and EKS deployment
+
+See the [AppHub/Fargate and EKS quickstart](docs/fargate-eks-quickstart.md) for an existing-cluster Fargate template, private EKS manifests, secrets, image access, and per-CMS isolation.

@@ -28,71 +28,113 @@ PRODUCT_ID="prod-hzj224hmwq77w";
 # the identical shape.
 
 DETAILS_JSON='{
-   "Version":{
-      "VersionTitle":"{RELEASE_VERSION}",
-      "ReleaseNotes":"{RELEASE_VERSION} Version"
+   "Version": {
+      "VersionTitle": "{RELEASE_VERSION}",
+      "ReleaseNotes": "{RELEASE_VERSION} Version"
    },
-   "DeliveryOptions":[
+   "DeliveryOptions": [
       {
-         "DeliveryOptionTitle":"Container image",
-         "Details":{
-            "EcrDeliveryOptionDetails":{
-               "ContainerImages":[
+         "DeliveryOptionTitle": "Container image",
+         "Details": {
+            "EcrDeliveryOptionDetails": {
+               "ContainerImages": [
                   "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
                ],
-               "DeploymentResources":[
+               "DeploymentResources": [
                   {
-                     "Name":"AgentCoreCloudFormationTemplate",
-                     "Url":"https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml"
+                     "Name": "AgentCoreCloudFormationTemplate",
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml"
                   }
                ],
-               "CompatibleServices":[
+               "CompatibleServices": [
                   "Bedrock-AgentCore"
                ],
-               "AgenticType":[
+               "AgenticType": [
                   "MCP_SERVER"
                ],
-               "Description":"Deploy OpenAPI MCP as a container image on Amazon Bedrock AgentCore Runtime",
-               "UsageInstructions":"For end-user instructions on subscribing, configuring, testing, and connecting OpenAPI MCP AgentCore to a target OpenAPI or Swagger API, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md",
-               "EnvironmentVariables":[
+               "Description": "Deploy OpenAPI MCP as a container image on Amazon Bedrock AgentCore Runtime",
+               "UsageInstructions": "For end-user instructions on subscribing, configuring, testing, and connecting OpenAPI MCP AgentCore to a target OpenAPI or Swagger API, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md",
+               "EnvironmentVariables": [
                   {
-                     "Name":"OPENAPI_URL",
-                     "Description":"URL to the target API OpenAPI/Swagger specification that this MCP server should expose as tools."
+                     "Name": "OPENAPI_URL",
+                     "Description": "URL to the target API OpenAPI/Swagger specification that this MCP server should expose as tools."
                   },
                   {
-                     "Name":"API_BASE_URL",
-                     "Description":"Base URL of the target API that generated tools should call."
+                     "Name": "API_BASE_URL",
+                     "Description": "Base URL of the target API that generated tools should call."
                   },
                   {
-                     "Name":"OPENAPI_AUTH_TOKEN",
-                     "Description":"Bearer token used when calling protected endpoints on the target API (the same token used for that API authenticated requests)."
+                     "Name": "OPENAPI_AUTH_TOKEN",
+                     "Description": "Bearer token used when calling protected endpoints on the target API (the same token used for that API authenticated requests)."
                   },
                   {
-                     "Name":"MCP_ALLOWED_TOOLS",
-                     "Description":"Optional comma-separated allowlist of tool names to expose. Leave blank to expose every tool generated from the OpenAPI spec."
+                     "Name": "MCP_ALLOWED_TOOLS",
+                     "Description": "Optional comma-separated allowlist of tool names to expose. Leave blank to expose every tool generated from the OpenAPI spec."
                   }
                ]
             }
          }
       },
       {
-         "DeliveryOptionTitle":"Private ECS/Fargate",
-         "Details":{
-            "EcrDeliveryOptionDetails":{
-               "ContainerImages":[
+         "DeliveryOptionTitle": "Private ECS/Fargate",
+         "Details": {
+            "EcrDeliveryOptionDetails": {
+               "ContainerImages": [
                   "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
                ],
-               "DeploymentResources":[
+               "DeploymentResources": [
                   {
-                     "Name":"PrivateEcsCloudFormationTemplate",
-                     "Url":"https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml"
+                     "Name": "PrivateEcsCloudFormationTemplate",
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml"
                   }
                ],
-               "CompatibleServices":[
+               "CompatibleServices": [
                   "ECS"
                ],
-               "Description":"Run OpenAPI MCP as a private ECS/Fargate service inside the customer AWS VPC",
-               "UsageInstructions":"For private deployment instructions, including VPC, subnet, ingress, target API, and MCP configuration, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md"
+               "Description": "Run OpenAPI MCP as a private ECS/Fargate service inside the customer AWS VPC",
+               "UsageInstructions": "For private deployment instructions, including VPC, subnet, ingress, target API, and MCP configuration, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md"
+            }
+         }
+      },
+      {
+         "DeliveryOptionTitle": "Existing AppHub ECS/Fargate",
+         "Details": {
+            "EcrDeliveryOptionDetails": {
+               "ContainerImages": [
+                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
+               ],
+               "DeploymentResources": [
+                  {
+                     "Name": "AppHubCloudFormationTemplate",
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/apphub-ecs.yaml"
+                  }
+               ],
+               "CompatibleServices": [
+                  "ECS"
+               ],
+               "Description": "Deploy a separate OpenAPI MCP configuration for one CMS/API on Existing AppHub ECS/Fargate",
+               "UsageInstructions": "Use the subscribed image URI and matching architecture. Deployment, secret configuration, health checks and MCP client instructions: https://github.com/techcto/openapi-mcp-server/blob/main/docs/fargate-eks-quickstart.md"
+            }
+         }
+      },
+      {
+         "DeliveryOptionTitle": "Amazon EKS",
+         "Details": {
+            "EcrDeliveryOptionDetails": {
+               "ContainerImages": [
+                  "709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:{RELEASE_VERSION}"
+               ],
+               "DeploymentResources": [
+                  {
+                     "Name": "EksDeploymentManifest",
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/kubernetes/openapi-mcp.yaml"
+                  }
+               ],
+               "CompatibleServices": [
+                  "EKS"
+               ],
+               "Description": "Deploy a separate OpenAPI MCP configuration for one CMS/API on Amazon EKS",
+               "UsageInstructions": "Use the subscribed image URI and matching architecture. Deployment, secret configuration, health checks and MCP client instructions: https://github.com/techcto/openapi-mcp-server/blob/main/docs/fargate-eks-quickstart.md"
             }
          }
       }

@@ -211,7 +211,7 @@ function generateOperationSchema(operation, pathParams = [], openApiDoc) {
     schema.bearerToken = z.string().optional().describe('Override bearer token for this call');
   }
   if (!schema.headers) {
-    schema.headers = z.record(z.string()).optional().describe('Additional HTTP headers for this call');
+    schema.headers = z.record(z.string(), z.string()).optional().describe('Additional HTTP headers for this call');
   }
 
   return z.object(schema).passthrough(); // Allow additional properties like bearerToken
@@ -239,7 +239,7 @@ function buildZodTypeFromSchema(propSchema = {}, depth = 0) {
     }
     case 'object': {
       if (depth >= 5 || !propSchema.properties) {
-        return z.record(z.any());
+        return z.record(z.string(), z.any());
       }
       const requiredFields = propSchema.required || [];
       const shape = {};
@@ -316,9 +316,9 @@ export async function registerActions(server, loadSchema, toolMap = new Map(), c
       schema: z.object({
         path: z.string().describe("API path (e.g., /asset_category or /asset_category/123)"),
         method: z.string().describe("HTTP method: GET, POST, PUT, DELETE"),
-        params: z.record(z.any()).optional().describe("Query parameters for GET requests"),
-        body: z.record(z.any()).optional().describe("Form data for POST/PUT requests"),
-        headers: z.record(z.string()).optional().describe("Additional HTTP headers")
+        params: z.record(z.string(), z.any()).optional().describe("Query parameters for GET requests"),
+        body: z.record(z.string(), z.any()).optional().describe("Form data for POST/PUT requests"),
+        headers: z.record(z.string(), z.string()).optional().describe("Additional HTTP headers")
       }).passthrough(), // Allow additional properties like bearerToken
       handler: async (args) => {
         const { path, method, params, body, headers, bearerToken } = args;

@@ -142,3 +142,7 @@ You should see a list of tools generated from your API's OpenAPI specification -
 - [Model Context Protocol specification](https://modelcontextprotocol.io/)
 - [Amazon Bedrock AgentCore Runtime for AWS Marketplace](https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html)
 - [Deploy MCP servers in AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)
+
+## AppHub/Fargate and EKS deployment
+
+See the [AppHub/Fargate and EKS quickstart](fargate-eks-quickstart.md) for an existing-cluster Fargate template, private EKS manifests, secrets, image access, and per-CMS isolation.

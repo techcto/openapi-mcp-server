@@ -1,31 +1,39 @@
 catalog-item:
-  name: cms-mcp-serverless
+  name: openapi-mcp
 version:
-  description: CMS MCP Serverless ${Git.Version}
+  description: Per-API OpenAPI MCP on an existing AppHub Fargate cluster
   version_status: draft
   resource_url: https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/${Git.Version}/apphub-ecs.yaml
-  resource_params:
+  resource_params: |
     engine: fargate
+    required_outputs:
+      - Cluster
+      - VpcId
+      - ListenerArn
+      - LoadBalancerSecurityGroup
+      - ServiceSubnets
     build:
-      - {ParameterKey: VpcId, ParameterValue: '${Cluster.Outputs.VpcId}'}
-      - {ParameterKey: Cluster, ParameterValue: '${Cluster.Outputs.Cluster}'}
-      - {ParameterKey: ListenerArn, ParameterValue: '${Cluster.Outputs.ListenerArn}'}
-      - {ParameterKey: LoadBalancerSecurityGroup, ParameterValue: '${Cluster.Outputs.LoadBalancerSecurityGroup}'}
-      - {ParameterKey: ServiceSubnets, ParameterValue: '${Cluster.Outputs.ServiceSubnets}'}
-      - {ParameterKey: HostHeader, ParameterValue: '${Deployment.hostname}'}
-      - {ParameterKey: ListenerPriority, ParameterValue: '${Deployment.ListenerPriority}'}
-      - ParameterKey: CloudImageMcp
-        ParameterValue: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms@sha256:d9cb8225f2933d1ae9d6c910424f0ad9fc0250e0af0486cb538637508a9c9ff3
-        UpdateOnUpgrade: true
-      - {ParameterKey: CpuArchitecture, ParameterValue: X86_64}
-    required_outputs: [VpcId, Cluster, ListenerArn, LoadBalancerSecurityGroup, ServiceSubnets, LoadBalancerDnsName]
-    features:
-      protocol: https
-      ingress: ${Deployment.DeploymentValues.stack_outputs.McpUrl}
-      enabled: {}
+      - ParameterKey: CpuArchitecture
+        ParameterValue: X86_64
+      - ParameterKey: Cluster
+        ParameterValue: '${Cluster.Outputs.Cluster}'
+      - ParameterKey: VPCID
+        ParameterValue: '${Cluster.Outputs.VpcId}'
+      - ParameterKey: Subnets
+        ParameterValue: '${Cluster.Outputs.ServiceSubnets}'
+      - ParameterKey: ExistingListenerArn
+        ParameterValue: '${Cluster.Outputs.ListenerArn}'
+      - ParameterKey: LoadBalancerSecurityGroupId
+        ParameterValue: '${Cluster.Outputs.LoadBalancerSecurityGroup}'
+      - ParameterKey: HostName
+        ParameterValue: '${Deployment.hostname}'
     distribution:
       cloud:
         images:
           mcp:
-            source: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/aws-cms@sha256:d9cb8225f2933d1ae9d6c910424f0ad9fc0250e0af0486cb538637508a9c9ff3
+            source: '709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64'
             parameter: CloudImageMcp
+            verify_revision: true
+    features:
+      protocol: https
+      ingress: '${Deployment.DeploymentValues.stack_outputs.McpUrl}'

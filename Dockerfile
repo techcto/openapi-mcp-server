@@ -30,7 +30,8 @@ LABEL org.opencontainers.image.title="OpenAPI MCP Server" \
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
+RUN apk add --no-cache --upgrade "zlib>=1.4-r0" && \
+    addgroup -g 1001 -S nodejs && \
     adduser -S mcpserver -u 1001 -G nodejs
 
 # Copy necessary files from builder stage with proper ownership

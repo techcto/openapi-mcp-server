@@ -346,3 +346,7 @@ npm start
 ---
 
 **You're ready! Any OpenAPI spec can now be used by AI assistants through MCP tools.**
+
+## AppHub/Fargate and EKS deployment
+
+See the [AppHub/Fargate and EKS quickstart](docs/fargate-eks-quickstart.md) for an existing-cluster Fargate template, private EKS manifests, secrets, image access, and per-CMS isolation.
