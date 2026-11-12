@@ -11,6 +11,9 @@ on:
         required: true
 
 env:
+  DIRECT_PULL_ACCOUNT_ID: ${{ vars.DIRECT_PULL_ACCOUNT_ID || '317530278439' }}
+  AWS_REGION: us-east-1
+  MP_MCP_REPOSITORY: solodev/openapi-mcp
   MP_AWS_ECR: 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
@@ -39,7 +42,6 @@ jobs:
           npm ci --ignore-scripts --omit=dev
           node test/deployment-templates.test.js
           node test/health-auth.test.js
-          python3 test/publisher-pull-policy.test.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,11 +50,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR
-        run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${{ env.MP_AWS_ECR }}"
+      - name: Resolve seller private ECR
+        id: seller
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "registry=$account.dkr.ecr.$AWS_REGION.amazonaws.com" >> "$GITHUB_OUTPUT"
 
-      - name: Grant SpaceMade read-only access to the seller image
-        run: python3 devops/allow-cloud-pulls.py
+      - name: Prepare seller ECR repository and pull-only sharing
+        run: bash devops/prepare-repositories.sh
+
+      - name: Login to seller private ECR
+        run: aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${{ steps.seller.outputs.registry }}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -79,7 +87,7 @@ jobs:
           provenance: false
           sbom: false
           labels: org.opencontainers.image.revision=${{ github.sha }}
-          tags: ${{ env.MP_AWS_ECR }}/solodev/openapi-mcp:${{ steps.version.outputs.value }}
+          tags: ${{ steps.seller.outputs.registry }}/${{ env.MP_MCP_REPOSITORY }}:${{ steps.version.outputs.value }}
 
       # Cloud's verified image distribution currently accepts linux/amd64.
       # Keep the AgentCore ARM64 tag single-platform; publish AMD64 separately.
@@ -92,7 +100,21 @@ jobs:
           provenance: false
           sbom: false
           labels: org.opencontainers.image.revision=${{ github.sha }}
-          tags: ${{ env.MP_AWS_ECR }}/solodev/openapi-mcp:${{ steps.version.outputs.value }}-amd64
+          tags: ${{ steps.seller.outputs.registry }}/${{ env.MP_MCP_REPOSITORY }}:${{ steps.version.outputs.value }}-amd64
+
+      - name: Promote the same images into Marketplace ECR
+        env:
+          DIRECT_ECR: ${{ steps.seller.outputs.registry }}
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$MP_AWS_ECR"
+          for suffix in "" "-amd64"; do
+            tag="$RELEASE_VERSION$suffix"
+            digest=$(aws ecr describe-images --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+            docker buildx imagetools create --prefer-index=false --tag "$MP_AWS_ECR/$MP_MCP_REPOSITORY:$tag" "$DIRECT_ECR/$MP_MCP_REPOSITORY@$digest"
+            promoted=$(aws ecr describe-images --registry-id "${MP_AWS_ECR%%.*}" --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+            test "$promoted" = "$digest"
+          done
 
       - name: Prepare Marketplace changeset
         run: |

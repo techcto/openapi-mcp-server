@@ -10,7 +10,7 @@ catalog-items:
         \  - ParameterKey: VPCID\n    ParameterValue: '${Cluster.Outputs.VpcId}'\n  - ParameterKey: Subnets\n    ParameterValue: '${Cluster.Outputs.ServiceSubnets}'\n\
         \  - ParameterKey: ExistingListenerArn\n    ParameterValue: '${Cluster.Outputs.ListenerArn}'\n  - ParameterKey: LoadBalancerSecurityGroupId\n\
         \    ParameterValue: '${Cluster.Outputs.LoadBalancerSecurityGroup}'\n  - ParameterKey: HostName\n    ParameterValue: '${Deployment.hostname}'\n\
-        distribution:\n  cloud:\n    images:\n      mcp:\n        source: '709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64'\n\
+        distribution:\n  cloud:\n    images:\n      mcp:\n        source: '951157235292.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64'\n\
         \        parameter: CloudImageMcp\n        verify_revision: true\nfeatures:\n  protocol: https\n  ingress: '${Deployment.DeploymentValues.stack_outputs.McpUrl}'\n"
   cms-mcp-serverless:
     version:
@@ -35,7 +35,7 @@ catalog-items:
         - ParameterKey: ListenerPriority
           ParameterValue: ${Deployment.ListenerPriority}
         - ParameterKey: CloudImageMcp
-          ParameterValue: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64
+          ParameterValue: 951157235292.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64
           UpdateOnUpgrade: true
         - ParameterKey: CpuArchitecture
           ParameterValue: X86_64
@@ -54,6 +54,6 @@ catalog-items:
           cloud:
             images:
               mcp:
-                source: 709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64
+                source: 951157235292.dkr.ecr.us-east-1.amazonaws.com/solodev/openapi-mcp:${Git.Version}-amd64
                 parameter: CloudImageMcp
                 verify_revision: true
