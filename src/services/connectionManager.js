@@ -156,7 +156,7 @@ class ConnectionManager {
   startCleanupTimer() {
     setInterval(() => {
       this.cleanupIdleConnections();
-    }, CONFIG.sse.cleanupInterval);
+    }, CONFIG.sse.cleanupInterval).unref();
   }
 
   /**

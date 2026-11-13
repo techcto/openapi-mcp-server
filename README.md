@@ -477,3 +477,6 @@ connections. Events contain correlation IDs, method/tool names, HTTP status and
 duration. Arguments, results and authentication tokens are excluded. Portal's
 service detail can tail this metadata on demand; leaving the tab pauses its live
 view. MCP resource subscriptions are not advertised by this runtime.
+
+### CMS-managed tools
+The CMS AppHub product reads `/mcp/info` from its configured CMS. CMS provider settings control discovery and execution across Streamable HTTP, SSE and legacy endpoints; disabled or unavailable policy grants no tools. Public policy is cached for 15 seconds with coalesced reads. The dedicated CMS API token remains required for upstream operations. Generic OpenAPI installations retain their optional `MCP_ALLOWED_TOOLS` behavior when `CMS_MCP_POLICY_URL` is unset.

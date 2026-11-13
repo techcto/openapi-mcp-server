@@ -14,10 +14,13 @@ import { filterValidTools, getToolCount } from "./utils/toolUtils.js";
 import { logger } from "./utils/logger.js";
 import { fetchServerInstructions } from "./utils/fetchInstructions.js";
 
+import { createCmsPolicyReader, cmsPolicyMiddleware } from './utils/cmsToolPolicy.js';
+
 const app = express();
 
 // Setup middleware
 setupMiddleware(app);
+app.use(cmsPolicyMiddleware(createCmsPolicyReader({ url: process.env.CMS_MCP_POLICY_URL || '' })));
 
 // Initialize MCP server
 const serverInstructions = await fetchServerInstructions(CONFIG.openapi.schemaPath);

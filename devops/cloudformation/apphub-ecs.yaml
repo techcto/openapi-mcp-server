@@ -53,6 +53,11 @@ Parameters:
     Type: String
     Default: ''
     Description: Customer-managed KMS key ARN if the supplied secrets use one; omit for the default Secrets Manager key.
+  CmsPolicyUrl:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^https://[a-z0-9][a-z0-9.-]+[a-z0-9]/mcp/info$'
+    Description: Optional CMS-managed MCP policy URL. Disabled or unavailable policy grants no tools.
   AllowedTools:
     Type: String
     Default: ''
@@ -143,6 +148,7 @@ Resources:
             - {Name: OPENAPI_URL, Value: !Ref OpenApiUrl}
             - {Name: API_BASE_URL, Value: !Ref ApiBaseUrl}
             - {Name: MCP_ALLOWED_TOOLS, Value: !Ref AllowedTools}
+            - {Name: CMS_MCP_POLICY_URL, Value: !Ref CmsPolicyUrl}
           Secrets:
             - {Name: MCP_AUTH_TOKEN, ValueFrom: !Ref McpAuthSecretArn}
             - !If

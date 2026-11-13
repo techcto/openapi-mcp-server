@@ -48,13 +48,14 @@ export const getToolsArray = (toolMap) => {
     console.error("toolMap is not iterable");
   }
   
-  return tools;
+  return tools.filter(tool => isToolAllowed(tool.name));
 };
 
 /**
  * Get a specific tool from toolMap (handles both Map and Object)
  */
 export const getTool = (toolMap, name) => {
+  if (!isToolAllowed(name)) return null;
   if (toolMap && typeof toolMap.get === 'function') {
     return toolMap.get(name);
   } else if (toolMap && typeof toolMap === 'object') {
@@ -95,7 +96,7 @@ export const filterValidTools = (toolMap) => {
  */
 export const getToolCount = (toolMap) => {
   if (!toolMap) return 0;
-  return typeof toolMap.size === 'number' ? toolMap.size : Object.keys(toolMap).length;
+  return getToolsArray(toolMap).length;
 };
 
 /**

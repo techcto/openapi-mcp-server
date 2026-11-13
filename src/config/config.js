@@ -1,3 +1,4 @@
+import { cmsAllowsTool } from '../utils/cmsToolPolicy.js';
 const parseBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
   if (typeof value !== 'string') return fallback;
@@ -21,7 +22,7 @@ const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || `http://localhost:${
 const authTokens = parseCsv(process.env.MCP_AUTH_TOKENS || process.env.MCP_AUTH_TOKEN || process.env.API_TOKEN);
 const sigv4AllowedArns = parseCsv(process.env.SIGV4_ALLOWED_ARNS);
 const requireAuth = parseBoolean(process.env.REQUIRE_AUTH, authTokens.length > 0 || sigv4AllowedArns.length > 0);
-const allowedToolNames = parseCsv(process.env.MCP_ALLOWED_TOOLS);
+const allowedToolNames = process.env.CMS_MCP_POLICY_URL ? [] : parseCsv(process.env.MCP_ALLOWED_TOOLS);
 const upstreamBearerToken =
   process.env.API_BEARER_TOKEN ||
   process.env.OPENAPI_AUTH_TOKEN ||
@@ -98,7 +99,7 @@ export const getSchemaPath = (args = {}) => {
 };
 
 export const isToolAllowed = (toolName) => {
-  if (!toolName) return false;
+  if (!toolName || !cmsAllowsTool(toolName)) return false;
   if (!CONFIG.tools.allowedNames.length) return true;
   return CONFIG.tools.allowedNames.includes(toolName);
 };

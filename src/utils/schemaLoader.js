@@ -45,8 +45,9 @@ export const loadSchema = async (path) => {
   // Fetch remote schema
   if (path.startsWith("http://") || path.startsWith("https://")) {
     const headers = {};
-    if (process.env.API_TOKEN) {
-      headers["Authorization"] = `Bearer ${process.env.API_TOKEN}`;
+    const token = process.env.API_BEARER_TOKEN || process.env.OPENAPI_AUTH_TOKEN || process.env.API_TOKEN;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     let lastError = null;

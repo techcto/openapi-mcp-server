@@ -44,8 +44,8 @@ Parameters:
     Description: Separate random bearer token used by MCP clients.
   AllowedTools:
     Type: String
-    MinLength: 1
-    Description: Explicit comma-separated tool allowlist.
+    Default: ''
+    Description: Legacy parameter retained for upgrade compatibility; CMS provider settings control the enabled tools.
   DesiredCount: {Type: Number, Default: 1, MinValue: 1, MaxValue: 10}
 Resources:
   CmsApiCredential:
@@ -77,6 +77,7 @@ Resources:
         ApiAuthSecretArn: !Ref CmsApiCredential
         McpAuthSecretArn: !Ref McpClientCredential
         AllowedTools: !Ref AllowedTools
+        CmsPolicyUrl: !Sub '${CmsBaseUrl}/mcp/info'
         AssignPublicIp: !Ref AssignPublicIp
         DesiredCount: !Ref DesiredCount
 Outputs:

@@ -13,7 +13,7 @@ export async function fetchServerInstructions(openapiSchemaUrl) {
 
   let infoUrl;
   try {
-    infoUrl = openapiSchemaUrl.replace(/\/openapi\.json$/, "/info");
+    infoUrl = process.env.CMS_MCP_POLICY_URL || openapiSchemaUrl.replace(/\/openapi\.json$/, "/info");
     if (infoUrl === openapiSchemaUrl) {
       return undefined;
     }
