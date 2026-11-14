@@ -1,0 +1,13 @@
+{
+  "name": "@solodev/agentcore-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs" },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "3.1075.0",
+    "@aws-sdk/client-bedrock-agentcore": "3.1075.0",
+    "@aws-sdk/client-secrets-manager": "3.1075.0"
+  }
+}

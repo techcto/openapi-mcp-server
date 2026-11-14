@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Solodev AgentCore Chat. A standalone chat harness and widget API using CMS MCP as live context. No Osirus service or OpenSearch is required.
+Parameters:
+  RuntimeName:
+    Type: String
+    Default: solodev_chat
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9_]{0,47}$'
+  ContainerImageUri:
+    Type: String
+    Default: 951157235292.dkr.ecr.us-east-1.amazonaws.com/solodev/agentcore-chat:{RELEASE_VERSION}
+    AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9/_-]+:[A-Za-z0-9_.-]+$'
+  ImageRepositoryArn:
+    Type: String
+    Default: arn:aws:ecr:us-east-1:951157235292:repository/solodev/agentcore-chat
+  ArtifactBucket:
+    Type: String
+    Default: openapi-mcp
+    Description: Bucket containing the versioned Chat gateway ZIP, in the deployment Region. Published artifacts use us-east-1.
+  ArtifactKey:
+    Type: String
+    Default: chat/{RELEASE_VERSION}/gateway.zip
+  NetworkMode:
+    Type: String
+    Default: PUBLIC
+    AllowedValues: [PUBLIC, VPC]
+    Description: Choose VPC to reach a private CMS/MCP endpoint in the connected AppHub network.
+  RuntimeSubnets:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Private subnet IDs with access to CMS MCP and required AWS endpoints.
+  RuntimeSecurityGroups:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Security groups permitting runtime access to CMS MCP and required AWS endpoints.
+  ModelId:
+    Type: String
+    Default: us.amazon.nova-2-lite-v1:0
+  AgentName:
+    Type: String
+    Default: Solodev Assistant
+  McpUrl:
+    Type: String
+    AllowedPattern: '^https://[^\s]+$'
+    Description: HTTPS endpoint of CMS MCP or the standalone MCP product.
+  McpCredentialSecretArn:
+    Type: String
+    Description: Same-Region Secrets Manager secret containing JSON {"token":"CMS MCP bearer token"}.
+  AllowedTools:
+    Type: String
+    Default: ''
+    Description: Comma-separated tool names. Chat and search always filter to read-only tools. Autonomous writes additionally require explicit activation.
+  EnableAutonomous:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  PublicChat:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Explicitly enable anonymous read-only website chat. Otherwise a valid OIDC access token is required.
+  OidcIssuer:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^https://[^\s]+$'
+  OidcAudience:
+    Type: String
+    Default: ''
+  AllowedOrigins:
+    Type: String
+    Description: Comma-separated exact HTTPS website origins allowed to embed the widget. No wildcard.
+Rules:
+  PrivateNetworkConfigured:
+    RuleCondition: !Equals [!Ref NetworkMode, VPC]
+    Assertions:
+      - Assert: !Not [!Contains [!Ref RuntimeSubnets, '']]
+        AssertDescription: VPC mode requires private subnet IDs.
+      - Assert: !Not [!Contains [!Ref RuntimeSecurityGroups, '']]
+        AssertDescription: VPC mode requires security group IDs.
+  AuthConfigured:
+    RuleCondition: !Equals [!Ref PublicChat, 'false']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref OidcIssuer, '']]
+        AssertDescription: Private chat requires an OIDC issuer.
+      - Assert: !Not [!Equals [!Ref OidcAudience, '']]
+        AssertDescription: Private chat requires an OIDC audience.
+  AutonomousIsPrivate:
+    RuleCondition: !Equals [!Ref EnableAutonomous, 'true']
+    Assertions:
+      - Assert: !Equals [!Ref PublicChat, 'false']
+        AssertDescription: Autonomous work cannot be enabled on an anonymous public chat deployment.
+Conditions:
+  PrivateRuntime: !Equals [!Ref NetworkMode, VPC]
+Resources:
+  RuntimeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: bedrock-agentcore.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { 'aws:SourceAccount': !Ref 'AWS::AccountId' }
+      Policies:
+        - PolicyName: ChatRuntime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken]
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Ref ImageRepositoryArn
+              - Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/*'
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*'
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref McpCredentialSecretArn
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/*'
+  Runtime:
+    Type: AWS::BedrockAgentCore::Runtime
+    Properties:
+      AgentRuntimeName: !Ref RuntimeName
+      AgentRuntimeArtifact:
+        ContainerConfiguration: {ContainerUri: !Ref ContainerImageUri}
+      RoleArn: !GetAtt RuntimeRole.Arn
+      ProtocolConfiguration: HTTP
+      NetworkConfiguration:
+        NetworkMode: !Ref NetworkMode
+        NetworkModeConfig: !If
+          - PrivateRuntime
+          - Subnets: !Ref RuntimeSubnets
+            SecurityGroups: !Ref RuntimeSecurityGroups
+          - !Ref AWS::NoValue
+      LifecycleConfiguration: {IdleRuntimeSessionTimeout: 3600, MaxLifetime: 14400}
+      EnvironmentVariables:
+        MODEL_ID: !Ref ModelId
+        MCP_URL: !Ref McpUrl
+        MCP_CREDENTIAL_SECRET_ARN: !Ref McpCredentialSecretArn
+        ALLOWED_TOOLS: !Ref AllowedTools
+        ENABLE_AUTONOMOUS: !Ref EnableAutonomous
+  SessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Private signing key for this Chat harness's bounded widget sessions.
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+  GatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: sts:AssumeRole}]
+      ManagedPolicyArns: [!Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole']
+      Policies:
+        - PolicyName: InvokeThisChatOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: bedrock-agentcore:InvokeAgentRuntime
+                Resource: [!GetAtt Runtime.AgentRuntimeArn, !Sub '${Runtime.AgentRuntimeArn}/runtime-endpoint/*']
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref SessionSecret
+  Gateway:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs22.x
+      Handler: gateway.handler
+      Role: !GetAtt GatewayRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      ReservedConcurrentExecutions: 2
+      Code: {S3Bucket: !Ref ArtifactBucket, S3Key: !Ref ArtifactKey}
+      Environment:
+        Variables:
+          RUNTIME_ARN: !GetAtt Runtime.AgentRuntimeArn
+          SESSION_SECRET_ARN: !Ref SessionSecret
+          AGENT_NAME: !Ref AgentName
+          PUBLIC_CHAT: !Ref PublicChat
+          OIDC_ISSUER: !Ref OidcIssuer
+          OIDC_AUDIENCE: !Ref OidcAudience
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+  ChatUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref Gateway
+      AuthType: NONE
+      InvokeMode: BUFFERED
+  UrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Gateway
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+  UrlFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Gateway
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+Outputs:
+  ChatApiUrl:
+    Description: Widget baseApiUrl. OIDC or explicitly enabled public-chat policy is enforced by the gateway.
+    Value: !Sub '${ChatUrl.FunctionUrl}api'
+  RuntimeArn:
+    Value: !GetAtt Runtime.AgentRuntimeArn
+  RuntimeRoleArn:
+    Value: !GetAtt RuntimeRole.Arn
