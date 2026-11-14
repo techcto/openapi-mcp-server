@@ -97,8 +97,8 @@ jobs:
       - name: Marketplace submission remains an explicit later action
         if: ${{ inputs.submit_marketplace == true }}
         env:
-          CHAT_MARKETPLACE_PRODUCT_ID: ${{ vars.CHAT_MARKETPLACE_PRODUCT_ID }}
-          CHAT_MARKETPLACE_REPOSITORY: ${{ vars.CHAT_MARKETPLACE_REPOSITORY }}
+          CHAT_MARKETPLACE_PRODUCT_ID: ${{ vars.CHAT_MARKETPLACE_PRODUCT_ID || 'prod-csnnyvqmsdz5s' }}
+          CHAT_MARKETPLACE_REPOSITORY: ${{ vars.CHAT_MARKETPLACE_REPOSITORY || '709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/agentcore-chat' }}
           RELEASE_VERSION: ${{ steps.version.outputs.value }}
           SELLER_REGISTRY: ${{ steps.seller.outputs.registry }}
         run: bash devops/submit-chat-marketplace.sh

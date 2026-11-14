@@ -78,14 +78,19 @@ publishing permissions remain separate from read-only audits. Long-running,
 resumable jobs and browser accessibility scanners are not supplied by this
 initial chat harness; they belong in the CMS run/provider workflow.
 
-## Marketplace later
+## AWS Marketplace
 
-After creating the second product, configure GitHub repository variables:
-`CHAT_MARKETPLACE_PRODUCT_ID` and `CHAT_MARKETPLACE_REPOSITORY` (full Marketplace
-ECR repository URI). Product codes belong to that product's Marketplace setup;
-none are invented here. Explicitly run the workflow with
-`submit_marketplace=true` after testing the seller image. The submission script
-promotes the tested image digest and submits the separate AGENT delivery option.
+AgentCore Chat is a separate product from OpenAPI MCP:
+
+- Product ID: `prod-csnnyvqmsdz5s`
+- Product code: `c2tg5hj6k3lq7hwvqs1qszlhx`
+- Marketplace repository: `709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/agentcore-chat`
+
+The workflow defaults to this product and repository. Repository variables
+`CHAT_MARKETPLACE_PRODUCT_ID` and `CHAT_MARKETPLACE_REPOSITORY` may override
+these values. Explicitly run the workflow with the tested `release_version`
+and `submit_marketplace=true` to promote the existing seller image digest and
+submit the separate AGENT delivery option. Submission does not launch a stack.
 
 ## CMS / Portal integration
 
