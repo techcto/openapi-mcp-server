@@ -44,7 +44,14 @@ Parameters:
     Description: HTTPS endpoint of CMS MCP or the standalone MCP product.
   McpCredentialSecretArn:
     Type: String
-    Description: Same-Region Secrets Manager secret containing JSON {"token":"CMS MCP bearer token"}.
+    Default: ''
+    Description: Optional existing same-Region Secrets Manager secret containing JSON {"token":"CMS MCP bearer token"}.
+  McpBearerToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    AllowedPattern: '^$|^[A-Za-z0-9._~+/-]{20,4096}={0,2}$'
+    Description: MCP bearer token. Stored in a stack-owned Secrets Manager secret when an existing secret ARN is not supplied.
   AllowedTools:
     Type: String
     Default: ''
@@ -69,6 +76,10 @@ Parameters:
     Type: String
     Description: Comma-separated exact HTTPS website origins allowed to embed the widget. No wildcard.
 Rules:
+  McpCredentialConfigured:
+    Assertions:
+      - Assert: !Or [!Not [!Equals [!Ref McpCredentialSecretArn, '']], !Not [!Equals [!Ref McpBearerToken, '']]]
+        AssertDescription: Supply an existing MCP secret ARN or an MCP bearer token.
   PrivateNetworkConfigured:
     RuleCondition: !Equals [!Ref NetworkMode, VPC]
     Assertions:
@@ -89,8 +100,15 @@ Rules:
       - Assert: !Equals [!Ref PublicChat, 'false']
         AssertDescription: Autonomous work cannot be enabled on an anonymous public chat deployment.
 Conditions:
+  CreateMcpCredential: !Equals [!Ref McpCredentialSecretArn, '']
   PrivateRuntime: !Equals [!Ref NetworkMode, VPC]
 Resources:
+  McpCredential:
+    Type: AWS::SecretsManager::Secret
+    Condition: CreateMcpCredential
+    Properties:
+      Description: Private MCP credential for this AgentCore Chat runtime.
+      SecretString: !Sub '{"token":"${McpBearerToken}"}'
   RuntimeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -120,7 +138,7 @@ Resources:
                   - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*'
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
-                Resource: !Ref McpCredentialSecretArn
+                Resource: !If [CreateMcpCredential, !Ref McpCredential, !Ref McpCredentialSecretArn]
               - Effect: Allow
                 Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/*'
@@ -143,7 +161,7 @@ Resources:
       EnvironmentVariables:
         MODEL_ID: !Ref ModelId
         MCP_URL: !Ref McpUrl
-        MCP_CREDENTIAL_SECRET_ARN: !Ref McpCredentialSecretArn
+        MCP_CREDENTIAL_SECRET_ARN: !If [CreateMcpCredential, !Ref McpCredential, !Ref McpCredentialSecretArn]
         ALLOWED_TOOLS: !Ref AllowedTools
         ENABLE_AUTONOMOUS: !Ref EnableAutonomous
   SessionSecret:

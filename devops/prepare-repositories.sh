@@ -42,4 +42,18 @@ for repository in "$MP_MCP_REPOSITORY"; do
     aws ecr set-repository-policy --repository-name "$repository" \
       --policy-text "file://$workdir/shared-policy.json" > /dev/null
   fi
+  # First-party deployment accounts may pull the same immutable publication image.
+  # Keep the primary Cloud sharing statement and all unrelated repository policies.
+  extra_accounts="${ADDITIONAL_PULL_ACCOUNT_IDS:-}"
+  for extra_account in ${extra_accounts//,/ }; do
+    [[ "$extra_account" =~ ^[0-9]{12}$ ]] || { echo 'Invalid additional pull account.' >&2; exit 1; }
+    [[ "$extra_account" != "${DIRECT_PULL_ACCOUNT_ID:-}" ]] || continue
+    aws ecr get-repository-policy --repository-name "$repository" --query policyText --output text > "$workdir/current-policy.json"
+    jq --arg sid "DirectPull$extra_account" --arg principal "arn:$partition:iam::$extra_account:root" '
+      .Statement = ((.Statement // [] | if type == "array" then . else [.] end
+        | map(select(.Sid != $sid))) + [{Sid: $sid, Effect: "Allow", Principal: {AWS: $principal},
+          Action: ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]}])
+    ' "$workdir/current-policy.json" > "$workdir/extra-policy.json"
+    aws ecr set-repository-policy --repository-name "$repository" --policy-text "file://$workdir/extra-policy.json" > /dev/null
+  done
 done

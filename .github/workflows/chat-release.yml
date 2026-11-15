@@ -17,6 +17,7 @@ env:
   AWS_REGION: us-east-1
   DIRECT_PULL_ACCOUNT_ID: ${{ vars.DIRECT_PULL_ACCOUNT_ID || '317530278439' }}
   MP_MCP_REPOSITORY: solodev/agentcore-chat
+  ADDITIONAL_PULL_ACCOUNT_IDS: ${{ vars.CHAT_ADDITIONAL_PULL_ACCOUNT_IDS || '501911125390' }}
 jobs:
   publish:
     runs-on: ubuntu-latest
