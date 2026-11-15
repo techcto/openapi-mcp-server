@@ -188,30 +188,46 @@ Resources:
           OIDC_ISSUER: !Ref OidcIssuer
           OIDC_AUDIENCE: !Ref OidcAudience
           ALLOWED_ORIGINS: !Ref AllowedOrigins
-  ChatUrl:
-    Type: AWS::Lambda::Url
+  ChatApi:
+    Type: AWS::ApiGatewayV2::Api
     Properties:
-      TargetFunctionArn: !Ref Gateway
-      AuthType: NONE
-      InvokeMode: BUFFERED
-  UrlInvokePermission:
-    Type: AWS::Lambda::Permission
+      Name: !Sub '${AWS::StackName}-chat'
+      ProtocolType: HTTP
+  ChatIntegration:
+    Type: AWS::ApiGatewayV2::Integration
     Properties:
-      FunctionName: !Ref Gateway
-      Action: lambda:InvokeFunctionUrl
-      Principal: '*'
-      FunctionUrlAuthType: NONE
-  UrlFunctionPermission:
+      ApiId: !Ref ChatApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt Gateway.Arn
+      PayloadFormatVersion: '2.0'
+      TimeoutInMillis: 30000
+  ChatRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ChatApi
+      RouteKey: '$default'
+      Target: !Sub 'integrations/${ChatIntegration}'
+  ChatStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ChatApi
+      StageName: '$default'
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 10
+        ThrottlingRateLimit: 5
+  ChatInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref Gateway
       Action: lambda:InvokeFunction
-      Principal: '*'
-      InvokedViaFunctionUrl: true
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatApi}/*'
 Outputs:
   ChatApiUrl:
     Description: Widget baseApiUrl. OIDC or explicitly enabled public-chat policy is enforced by the gateway.
-    Value: !Sub '${ChatUrl.FunctionUrl}api'
+    Value: !Sub '${ChatApi.ApiEndpoint}/api'
   RuntimeArn:
     Value: !GetAtt Runtime.AgentRuntimeArn
   RuntimeRoleArn:

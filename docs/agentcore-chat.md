@@ -33,11 +33,15 @@ Supply:
   `PublicChat=true` for anonymous, read-only website chat.
 
 The stack creates the AgentCore runtime, execution role, a small Lambda widget
-API and private session-signing secret. It outputs `RuntimeArn` and `ChatApiUrl`.
+API behind a throttled API Gateway HTTP API and private session-signing secret. It outputs `RuntimeArn` and `ChatApiUrl`.
 It creates no IAM users or long-lived AWS access keys.
 
-The gateway's URL is public network connectivity; application authentication
-is enforced independently. It does not make a private network endpoint publicly
+The widget API is publicly reachable; application authentication is enforced
+independently. Lambda has no public Function URL or wildcard invocation grant:
+only this account's API Gateway API may invoke it. The HTTP API has a 30-second
+synchronous request limit; this widget endpoint is not a long-running job API.
+After upgrading an existing stack, update the widget baseApiUrl to the new
+ChatApiUrl output (the old Lambda Function URL is removed). It does not make a private network endpoint publicly
 reachable. For a private CMS, choose `NetworkMode=VPC`, supply `RuntimeSubnets` and
 `RuntimeSecurityGroups` from the connected AppHub, and allow HTTPS from that
 security group to the CMS MCP endpoint. These subnets need private endpoints
