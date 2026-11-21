@@ -34,6 +34,8 @@ jobs:
           echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Check Chat contracts and package gateway
         run: |
+          npm ci --ignore-scripts --omit=dev
+          node --test test/agentcore-vpc.test.js
           npm ci --ignore-scripts --prefix products/chat
           node --test products/chat/test/*.test.mjs
           cd products/chat

@@ -118,3 +118,26 @@ No Osirus SaaS database, public API or OpenSearch service is required.
 Agents are included in Portal plans. Solodev AI usage uses the managed payer;
 customer-owned AgentCore invokes Bedrock in that AWS account and AWS bills it
 there. Do not charge the same invocation through both providers.
+
+### Connect to the selected CMS VPC
+
+Both AgentCore Chat and OpenAPI MCP accept the same network inputs:
+`NetworkMode=VPC`, `VpcId`, `RuntimeSubnets`, optional `CmsSecurityGroupId`, and
+`CmsPort` (443 by default). Portal discovers compatible settings from the owned
+CMS/AppHub CloudFormation stack and preselects them in the AWS launch form.
+The customer still reviews the change set and supplies API authentication in
+secret fields. Credentials never belong in launch URLs.
+
+With `VpcId`, the agent stack creates its own runtime security group. When a CMS
+listener security group is supplied, the agent stack also owns a single ingress
+rule from that runtime group to the selected port. Stack deletion removes that
+rule; it does not delete the CMS, its VPC, subnets or existing security groups.
+Existing Chat deployments can keep supplying `RuntimeSecurityGroups` directly.
+
+VPC mode does not itself make an internet-facing CMS private. Use an API hostname
+and trusted TLS certificate reachable from the selected subnets. Review DNS,
+routes and target security rules. Container pulls need ECR and S3 connectivity;
+Logs and model calls need their AWS endpoints or NAT. The stack does not create
+NAT gateways or chargeable interface endpoints implicitly. For Regions other
+than us-east-1, supply a same-Region ECR image. Shared Solodev hosting does not
+expose its hosting VPC to a customer's account; use its authenticated public API.

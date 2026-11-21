@@ -40,6 +40,7 @@ jobs:
       - name: Check deployment contracts
         run: |
           npm ci --ignore-scripts --omit=dev
+          node --test test/agentcore-vpc.test.js
           node test/deployment-templates.test.js
           node test/health-auth.test.js
 

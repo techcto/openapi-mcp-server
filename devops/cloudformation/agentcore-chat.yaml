@@ -32,6 +32,22 @@ Parameters:
     Type: CommaDelimitedList
     Default: ''
     Description: Security groups permitting runtime access to CMS MCP and required AWS endpoints.
+  VpcId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^vpc-[a-f0-9]+$'
+    Description: CMS VPC ID. When provided in VPC mode, this stack creates its own runtime security group.
+  CmsSecurityGroupId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^sg-[a-f0-9]+$'
+    Description: Optional CMS load balancer or API security group. This stack owns only the added access rule.
+  CmsPort:
+    Type: Number
+    Default: 443
+    MinValue: 1
+    MaxValue: 65535
+    Description: CMS API listener port allowed from this runtime's security group.
   ModelId:
     Type: String
     Default: us.amazon.nova-2-lite-v1:0
@@ -69,13 +85,18 @@ Parameters:
     Type: String
     Description: Comma-separated exact HTTPS website origins allowed to embed the widget. No wildcard.
 Rules:
+  CmsIngressRequiresVpc:
+    RuleCondition: !Not [!Equals [!Ref CmsSecurityGroupId, '']]
+    Assertions:
+      - Assert: !And [!Equals [!Ref NetworkMode, VPC], !Not [!Equals [!Ref VpcId, '']]]
+        AssertDescription: A CMS listener access rule requires VPC mode and its VPC ID.
   PrivateNetworkConfigured:
     RuleCondition: !Equals [!Ref NetworkMode, VPC]
     Assertions:
       - Assert: !Not [!Contains [!Ref RuntimeSubnets, '']]
         AssertDescription: VPC mode requires private subnet IDs.
-      - Assert: !Not [!Contains [!Ref RuntimeSecurityGroups, '']]
-        AssertDescription: VPC mode requires security group IDs.
+      - Assert: !Or [!Not [!Equals [!Ref VpcId, '']], !Not [!Contains [!Ref RuntimeSecurityGroups, '']]]
+        AssertDescription: VPC mode requires a CMS VPC ID or existing runtime security groups.
   AuthConfigured:
     RuleCondition: !Equals [!Ref PublicChat, 'false']
     Assertions:
@@ -89,8 +110,38 @@ Rules:
       - Assert: !Equals [!Ref PublicChat, 'false']
         AssertDescription: Autonomous work cannot be enabled on an anonymous public chat deployment.
 Conditions:
+  CreateRuntimeGroup: !And [!Condition PrivateRuntime, !Not [!Equals [!Ref VpcId, '']]]
+  ConnectCmsGroup: !And [!Condition CreateRuntimeGroup, !Not [!Equals [!Ref CmsSecurityGroupId, '']]]
   PrivateRuntime: !Equals [!Ref NetworkMode, VPC]
 Resources:
+  AgentCoreSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateRuntimeGroup
+    Properties:
+      GroupDescription: AgentCore runtime access to CMS and AWS HTTPS services
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - !If
+          - ConnectCmsGroup
+          - IpProtocol: tcp
+            FromPort: !Ref CmsPort
+            ToPort: !Ref CmsPort
+            DestinationSecurityGroupId: !Ref CmsSecurityGroupId
+          - !Ref AWS::NoValue
+  CmsRuntimeIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: ConnectCmsGroup
+    Properties:
+      Description: Access from this AgentCore runtime only
+      GroupId: !Ref CmsSecurityGroupId
+      IpProtocol: tcp
+      FromPort: !Ref CmsPort
+      ToPort: !Ref CmsPort
+      SourceSecurityGroupId: !Ref AgentCoreSecurityGroup
   RuntimeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -137,7 +188,7 @@ Resources:
         NetworkModeConfig: !If
           - PrivateRuntime
           - Subnets: !Ref RuntimeSubnets
-            SecurityGroups: !Ref RuntimeSecurityGroups
+            SecurityGroups: !If [CreateRuntimeGroup, [!Ref AgentCoreSecurityGroup], !Ref RuntimeSecurityGroups]
           - !Ref AWS::NoValue
       LifecycleConfiguration: {IdleRuntimeSessionTimeout: 3600, MaxLifetime: 14400}
       EnvironmentVariables:
@@ -225,6 +276,11 @@ Resources:
       SourceAccount: !Ref AWS::AccountId
       SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatApi}/*'
 Outputs:
+  RuntimeNetworkMode:
+    Value: !Ref NetworkMode
+  RuntimeSecurityGroupId:
+    Condition: CreateRuntimeGroup
+    Value: !Ref AgentCoreSecurityGroup
   ChatApiUrl:
     Description: Widget baseApiUrl. OIDC or explicitly enabled public-chat policy is enforced by the gateway.
     Value: !Sub '${ChatApi.ApiEndpoint}/api'

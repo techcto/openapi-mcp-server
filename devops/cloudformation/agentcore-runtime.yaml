@@ -41,6 +41,35 @@ Parameters:
       ECR image URI for OpenAPI MCP, including tag. Must be pushed to an ECR
       repository the AgentCore execution role can pull from.
 
+  NetworkMode:
+    Type: String
+    Default: PUBLIC
+    AllowedValues: [PUBLIC, VPC]
+  RuntimeSubnets:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: CMS VPC subnets with NAT or the required AWS service endpoints.
+  RuntimeSecurityGroups:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Existing runtime security groups, used only when VpcId is not supplied.
+  VpcId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^vpc-[a-f0-9]+$'
+    Description: CMS VPC ID. When provided in VPC mode, this stack creates its own runtime security group.
+  CmsSecurityGroupId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^sg-[a-f0-9]+$'
+    Description: Optional CMS load balancer or API security group. This stack owns only the added access rule.
+  CmsPort:
+    Type: Number
+    Default: 443
+    MinValue: 1
+    MaxValue: 65535
+    Description: CMS API listener port allowed from this runtime's security group.
+
   # ── Target API ─────────────────────────────────────────────────────────────
   OpenApiUrl:
     Type: String
@@ -79,12 +108,56 @@ Parameters:
       Optional. Comma-separated allowlist of tool names to expose. Leave
       blank to expose every tool generated from the OpenAPI spec.
 
+Rules:
+  CmsIngressRequiresVpc:
+    RuleCondition: !Not [!Equals [!Ref CmsSecurityGroupId, '']]
+    Assertions:
+      - Assert: !And [!Equals [!Ref NetworkMode, VPC], !Not [!Equals [!Ref VpcId, '']]]
+        AssertDescription: A CMS listener access rule requires VPC mode and its VPC ID.
+  PrivateNetworkConfigured:
+    RuleCondition: !Equals [!Ref NetworkMode, VPC]
+    Assertions:
+      - Assert: !Not [!Contains [!Ref RuntimeSubnets, '']]
+        AssertDescription: VPC mode requires runtime subnet IDs.
+      - Assert: !Or [!Not [!Equals [!Ref VpcId, '']], !Not [!Contains [!Ref RuntimeSecurityGroups, '']]]
+        AssertDescription: VPC mode requires a CMS VPC ID or existing runtime security groups.
 Conditions:
+  PrivateRuntime: !Equals [!Ref NetworkMode, VPC]
+  CreateRuntimeGroup: !And [!Condition PrivateRuntime, !Not [!Equals [!Ref VpcId, '']]]
+  ConnectCmsGroup: !And [!Condition CreateRuntimeGroup, !Not [!Equals [!Ref CmsSecurityGroupId, '']]]
   HasOpenApiAuthToken: !Not [!Equals [!Ref OpenApiAuthToken, '']]
   HasMcpAuthToken:     !Not [!Equals [!Ref McpAuthToken, '']]
   HasAllowedTools:     !Not [!Equals [!Ref AllowedTools, '']]
 
 Resources:
+  AgentCoreSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateRuntimeGroup
+    Properties:
+      GroupDescription: AgentCore runtime access to CMS and AWS HTTPS services
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - !If
+          - ConnectCmsGroup
+          - IpProtocol: tcp
+            FromPort: !Ref CmsPort
+            ToPort: !Ref CmsPort
+            DestinationSecurityGroupId: !Ref CmsSecurityGroupId
+          - !Ref AWS::NoValue
+  CmsRuntimeIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: ConnectCmsGroup
+    Properties:
+      Description: Access from this AgentCore runtime only
+      GroupId: !Ref CmsSecurityGroupId
+      IpProtocol: tcp
+      FromPort: !Ref CmsPort
+      ToPort: !Ref CmsPort
+      SourceSecurityGroupId: !Ref AgentCoreSecurityGroup
 
   # ── Execution role (assumed by the AgentCore runtime process) ──────────────
   AgentCoreExecutionRole:
@@ -202,7 +275,7 @@ Resources:
       Role: !GetAtt RuntimeProvisionerRole.Arn
       Code:
         ZipFile: |
-          import boto3, json, urllib.request
+          import boto3, json, urllib.request, time
 
           SUCCESS = 'SUCCESS'
           FAILED  = 'FAILED'
@@ -250,15 +323,26 @@ Resources:
                       },
                   }
                   protocol_configuration = {'serverProtocol': 'MCP'}
+                  network = {'networkMode': props.get('NetworkMode', 'PUBLIC')}
+                  if event['RequestType'] != 'Delete' and network['networkMode'] == 'VPC':
+                      subnets = props.get('RuntimeSubnets', [])
+                      groups = props.get('RuntimeSecurityGroups', [])
+                      if not subnets or not groups or any(not value for value in subnets + groups):
+                          raise ValueError('VPC mode requires subnet and security group IDs')
+                      network['networkModeConfig'] = {'subnets': subnets, 'securityGroups': groups}
+                      try:
+                          iam.create_service_linked_role(AWSServiceName='network.bedrock-agentcore.amazonaws.com')
+                      except iam.exceptions.InvalidInputException as error:
+                          if 'already exists' not in str(error).lower():
+                              raise
+
 
                   if event['RequestType'] == 'Create':
                       resp = client.create_agent_runtime(
                           agentRuntimeName=runtime_name,
                           description=desc,
                           roleArn=role_arn,
-                          networkConfiguration={
-                              'networkMode': 'PUBLIC',
-                          },
+                          networkConfiguration=network,
                           agentRuntimeArtifact=runtime_artifact,
                           protocolConfiguration=protocol_configuration,
                           environmentVariables=env_vars,
@@ -275,9 +359,7 @@ Resources:
                           agentRuntimeId=runtime_id,
                           description=desc,
                           roleArn=role_arn,
-                          networkConfiguration={
-                              'networkMode': 'PUBLIC',
-                          },
+                          networkConfiguration=network,
                           agentRuntimeArtifact=runtime_artifact,
                           protocolConfiguration=protocol_configuration,
                           environmentVariables=env_vars,
@@ -291,8 +373,20 @@ Resources:
                           runtime_id = physical.split('/')[-1]
                           try:
                               client.delete_agent_runtime(agentRuntimeId=runtime_id)
-                          except Exception:
-                              pass
+                          except Exception as error:
+                              if getattr(error, 'response', {}).get('Error', {}).get('Code') != 'ResourceNotFoundException':
+                                  raise
+                          deadline = time.monotonic() + 240
+                          while time.monotonic() < deadline:
+                              try:
+                                  client.get_agent_runtime(agentRuntimeId=runtime_id)
+                              except Exception as error:
+                                  if getattr(error, 'response', {}).get('Error', {}).get('Code') == 'ResourceNotFoundException':
+                                      break
+                                  raise
+                              time.sleep(3)
+                          else:
+                              raise TimeoutError('Runtime deletion is still in progress; retry stack deletion.')
                       send(event, ctx, SUCCESS, {}, physical)
 
               except Exception as exc:
@@ -304,6 +398,9 @@ Resources:
     DependsOn: AgentCoreExecutionRole
     Properties:
       ServiceToken: !GetAtt RuntimeProvisionerFunction.Arn
+      NetworkMode: !Ref NetworkMode
+      RuntimeSubnets: !Ref RuntimeSubnets
+      RuntimeSecurityGroups: !If [CreateRuntimeGroup, [!Ref AgentCoreSecurityGroup], !Ref RuntimeSecurityGroups]
       Region: !Ref AWS::Region
       RoleArn: !GetAtt AgentCoreExecutionRole.Arn
       ContainerUri: !Ref ContainerImageUri
@@ -318,6 +415,11 @@ Resources:
         REQUIRE_AUTH: !If [HasMcpAuthToken, 'true', 'false']
 
 Outputs:
+  RuntimeNetworkMode:
+    Value: !Ref NetworkMode
+  RuntimeSecurityGroupId:
+    Condition: CreateRuntimeGroup
+    Value: !Ref AgentCoreSecurityGroup
 
   RuntimeArn:
     Description: AgentCore Runtime ARN -- paste into the Osirus OpenAPI MCP provider connection (or any other MCP client's Runtime ARN field).
