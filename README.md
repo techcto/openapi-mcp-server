@@ -1,54 +1,103 @@
-```
-   ____                    _    ____ ___    __  __  ____ ____
-  / __ \ _ __   ___ _ __  / \  |  _ \_ _|  |  \/  |/ ___|  _ \
- | |  | | '_ \ / _ \ '_ \/ _ \ | |_) | |   | |\/| | |   | |_) |
- | |__| | |_) |  __/ | | / ___ \|  __/| |   | |  | | |___|  __/
-  \____/| .__/ \___|_| |_/_/   \_\_|  |___|  |_|  |_|\____|_|
-        |_|
-        turn any OpenAPI spec into MCP tools -- self-hosted, AWS Marketplace, or Bedrock AgentCore
-```
+# AgentCore OpenAPI MCP & Chat
+
+**Turn your APIs into agent tools. Bring your website content into AI chat.**
+
+Two AWS Marketplace products, built for Amazon Bedrock AgentCore and deployed in
+your AWS account. **OpenAPI MCP** turns an API specification into callable tools.
+**AgentCore Chat** runs the model and tool loop that answers questions using your
+live MCP content. Use either product on its own, or connect them together.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![AWS Marketplace](https://img.shields.io/badge/AWS%20Marketplace-Subscribe-orange)](#subscribe-on-aws-marketplace)
+[![AWS Marketplace](https://img.shields.io/badge/AWS%20Marketplace-Two%20products-orange)](#choose-your-product)
 [![Protocol](https://img.shields.io/badge/protocol-Model%20Context%20Protocol-blueviolet)](https://modelcontextprotocol.io/)
 
-A reusable [Model Context Protocol](https://modelcontextprotocol.io/) server that turns **any** OpenAPI or Swagger spec into:
+## Choose your product
 
-- discovery tools for schema inspection
-- generated execution tools for calling the underlying API
-- HTTP, SSE, STDIO, and Amazon Bedrock AgentCore Runtime transports
+<table>
+<tr>
+<td width="50%" valign="top">
+<h3>OpenAPI MCP</h3>
+<p><strong>Give agents tools for your APIs.</strong></p>
+<p>Turn an OpenAPI or Swagger document into tools that agents can discover and
+call. Connect a CMS, business application or internal API without building a
+custom MCP adapter.</p>
+<ul>
+<li>Generated API discovery and execution tools</li>
+<li>Public or VPC access to your target API</li>
+<li>AgentCore, private ECS/Fargate, AppHub and EKS delivery options</li>
+</ul>
+<p><a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https%3A%2F%2Fopenapi-mcp.s3.us-east-1.amazonaws.com%2Fcloudformation%2F0.1.13%2Fagentcore-runtime-marketplace.yaml&amp;stackName=openapi-mcp-agentcore"><img src="docs/images/launch-cloudformation.svg" width="220" height="44" alt="Launch OpenAPI MCP CloudFormation stack on AWS" /></a></p>
+<p><a href="https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi"><strong>Subscribe on AWS Marketplace</strong></a><br />
+<a href="docs/marketplace-quickstart.md">Read the MCP quick start →</a></p>
+</td>
+<td width="50%" valign="top">
+<h3>AgentCore Chat</h3>
+<p><strong>Answer website questions with live MCP content.</strong></p>
+<p>Run an AI chat agent in your AWS account, with Amazon Bedrock model calls,
+authenticated MCP context and an HTTPS chat API for your website. Connect
+OpenAPI MCP or another compatible MCP service.</p>
+<ul>
+<li>Standalone runtime, chat gateway and website API</li>
+<li>Read-only website chat with public or authenticated user access</li>
+<li>Public or VPC access to your CMS/MCP service</li>
+</ul>
+<p><a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https%3A%2F%2Fopenapi-mcp.s3.us-east-1.amazonaws.com%2Fcloudformation%2Fchat%2F0.1.13%2Fagentcore-chat-marketplace.yaml&amp;stackName=agentcore-chat"><img src="docs/images/launch-cloudformation.svg" width="220" height="44" alt="Launch AgentCore Chat CloudFormation stack on AWS" /></a></p>
+<p><a href="https://aws.amazon.com/marketplace/pp?sku=c2tg5hj6k3lq7hwvqs1qszlhx"><strong>Subscribe on AWS Marketplace</strong></a><br />
+<a href="docs/agentcore-chat-quickstart.md">Read the Chat quick start →</a></p>
+</td>
+</tr>
+</table>
 
-This product is intentionally generic. Point it at a documented API and the
-same server can front a CMS, WordPress, GitHub, Stripe, a government service,
-or an internal business API without writing a custom MCP adapter. Most modern
-SaaS platforms publish some form of Swagger or OpenAPI description, making the
-API contract a practical bridge between business software and AI agents.
+Subscribe to the matching product before launching its Marketplace image. The
+buttons open the **v0.1.13 CloudFormation templates in us-east-1**. For another
+release or delivery option, use the deployment link from its Marketplace listing.
+AWS infrastructure, model usage and Marketplace charges apply to your account.
 
-## Product quick starts
+## How they work together
 
-- [OpenAPI MCP: AgentCore, private ECS/Fargate, AppHub and EKS](docs/marketplace-quickstart.md)
-- [AgentCore Chat: deploy, connect MCP and enable website chat](docs/agentcore-chat-quickstart.md)
+**Your API → OpenAPI MCP → AgentCore Chat → Your website**
 
-Every release tag publishes both products. Direct seller ECR artifacts are shared
-with approved accounts; Marketplace submission and review are a separate stage.
+OpenAPI MCP supplies the tools. Chat supplies the conversational model loop and
+website API. Each service keeps its own configuration and credentials on the
+server. A Chat deployment does not require an OpenSearch service or an Osirus
+subscription, and it can use an existing MCP service instead of OpenAPI MCP.
 
-## Manage a stack from your terminal
+Choose PUBLIC networking for internet-reachable APIs, or VPC networking for private
+CMS/API access. Both require the appropriate service authentication, routes and
+security-group permissions; the quick starts explain each configuration.
 
-Set `STACK_NAME`, `PRODUCT`, `AWS_REGION`, `AWS_PROFILE` and `RELEASE_VERSION` in
-an ignored `.env` file. `bash cmd.sh install` creates the stack directly;
-`bash cmd.sh update VERSION` prepares a version-update change set for review.
-See [stack management](docs/stack-management.md) for both products and parameter examples.
+## Deploy and manage
 
-## Subscribe on AWS Marketplace
+1. **Subscribe** to MCP, Chat, or both through their individual Marketplace listings.
+2. **Launch** the matching CloudFormation template and supply your API/MCP connection.
+3. **Verify and connect** using that product's quick start and stack outputs.
 
-[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+For terminal-based stack management, both products use the same command:
 
-OpenAPI MCP is delivered as a container image for **Amazon Bedrock AgentCore
-Runtime**. After subscribing, AWS hosts and scales the MCP runtime for you;
-the runtime remains stateless and each customer supplies the API it wants to
-expose.
+```bash
+# .env: PRODUCT=agentcore-mcp or PRODUCT=agentcore-chat
+#       STACK_NAME, AWS_REGION, AWS_PROFILE and RELEASE_VERSION
+bash cmd.sh install
+bash cmd.sh update 0.1.14
+bash cmd.sh events
+```
 
-Prefer to run it inside your own AWS account? See [Private OpenAPI MCP](#private-openapi-mcp) and the [Quick Start](./QUICKSTART.md).
+`cmd.sh` calls `devops/cft.sh`. New stacks use CreateStack directly; version
+updates use UPDATE change sets and retain existing credentials and networking.
+See [stack management](docs/stack-management.md) for the complete `.env` setup and
+initial parameter examples. Use a release that is published and accessible to
+your account.
+
+Every release tag builds both products and submits them to Marketplace. Approved
+accounts can also use the private seller ECR distribution shared with SpaceMade;
+image publication and Marketplace approval are separate steps.
+
+## MCP runtime reference
+
+The sections below cover the generic OpenAPI MCP server, transports, configuration
+and development. For Chat deployment and its widget API, start with the
+[Chat quick start](docs/agentcore-chat-quickstart.md) and
+[technical reference](docs/agentcore-chat.md).
 
 ## Public And Private Deployment
 
