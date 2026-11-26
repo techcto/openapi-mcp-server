@@ -1,5 +1,9 @@
 # Solodev AgentCore Chat
 
+Start with the [AgentCore Chat quick start](agentcore-chat-quickstart.md) for
+subscription, deployment, verification and website setup. This page is the
+technical and release reference.
+
 Both products share one release workflow and version:
 
 | Product | Purpose | Release tag |
@@ -58,7 +62,8 @@ reachable. For a private CMS, choose `NetworkMode=VPC`, supply `RuntimeSubnets` 
 `RuntimeSecurityGroups` from the connected AppHub, and allow HTTPS from that
 security group to the CMS MCP endpoint. These subnets need private endpoints
 or existing NAT access for required AWS APIs. No public CMS exposure is needed.
-The template does not create or modify the customer's networking.
+The template reuses the existing VPC and subnets and can create a runtime security
+group plus a scoped CMS ingress rule. It does not create routes, NAT or service endpoints.
 
 ## Widget
 

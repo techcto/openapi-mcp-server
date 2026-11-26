@@ -24,6 +24,14 @@ or an internal business API without writing a custom MCP adapter. Most modern
 SaaS platforms publish some form of Swagger or OpenAPI description, making the
 API contract a practical bridge between business software and AI agents.
 
+## Product quick starts
+
+- [OpenAPI MCP: AgentCore, private ECS/Fargate, AppHub and EKS](docs/marketplace-quickstart.md)
+- [AgentCore Chat: deploy, connect MCP and enable website chat](docs/agentcore-chat-quickstart.md)
+
+Every release tag publishes both products. Direct seller ECR artifacts are shared
+with approved accounts; Marketplace submission and review are a separate stage.
+
 ## Subscribe on AWS Marketplace
 
 [Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)

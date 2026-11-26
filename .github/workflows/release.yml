@@ -183,6 +183,8 @@ jobs:
         run: |
           aws s3 cp devops/kubernetes/openapi-mcp.yaml \
             s3://openapi-mcp/kubernetes/openapi-mcp.yaml --acl public-read
+          aws s3 cp devops/kubernetes/openapi-mcp.yaml \
+            "s3://openapi-mcp/kubernetes/${{ steps.version.outputs.value }}/openapi-mcp.yaml" --acl public-read
 
   publish-chat:
     outputs:

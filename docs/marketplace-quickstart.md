@@ -1,148 +1,172 @@
-# OpenAPI MCP AgentCore Quickstart
+# OpenAPI MCP quick start
 
-OpenAPI MCP turns any OpenAPI or Swagger specification into a ready-to-use [Model Context Protocol](https://modelcontextprotocol.io/) tool server. Point it at an API's OpenAPI document and any MCP-compatible AI agent -- Amazon Bedrock AgentCore, Claude, or another MCP client -- gains search, create, read, and update tools for that API's resources, with no custom integration code to write.
+Turn an OpenAPI or Swagger document into MCP tools that agents can discover and
+call. Deploy one configuration per target API. This product provides tools; it
+does not run a chat model or install a website widget.
 
-This is the end-user deployment guide for the **OpenAPI MCP AgentCore**
-product. OpenAPI MCP dynamically generates tools from a Swagger/OpenAPI
-document. CMS platforms such as Solodev, WordPress, and Drupal are supported
-targets, along with CRM, support, commerce, Kubernetes, DevOps, finance, and
-cloud APIs.
+[Subscribe on AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+· [AgentCore Chat quick start](agentcore-chat-quickstart.md)
+· [AppHub/Fargate and EKS details](fargate-eks-quickstart.md)
 
-The Marketplace runtime is the public managed option. For private APIs or
-strict data-boundary requirements, deploy the same container in the customer's
-AWS account as **Private OpenAPI MCP** using ECS, EKS, or another private
-container platform. Keep the MCP endpoint and target API on private networking
-and inject credentials from the customer's secret store.
+## Before you start
 
-## Prerequisites
+- Have an AWS account permitted to subscribe and deploy the selected delivery
+  option. The CloudFormation paths require permissions to create their IAM and
+  application resources. AWS infrastructure and Marketplace charges apply.
+- Start in **US East (N. Virginia), `us-east-1`**, where the release images and
+  templates are published. Other Regions require the corresponding regional assets.
+- Obtain your API's actual OpenAPI/Swagger JSON or YAML URL, API base URL, and
+  bearer credential if needed. The runtime must be able to reach both URLs.
+- Choose the tools the client is permitted to use. An OpenAPI document can describe
+  write/delete operations as well as read operations; an empty allowlist exposes
+  the generated tools permitted by the target API.
 
-Before you begin, you need:
+## 1. Subscribe and select a deployment
 
-- An AWS account with access to AWS Marketplace and Amazon Bedrock AgentCore Runtime (or an Amazon EKS cluster, if deploying there instead)
-- An API with a published OpenAPI/Swagger specification (JSON or YAML) that OpenAPI MCP can read
-- A bearer token or API key for that API, if its endpoints require authentication
+Subscribe to the listing and select the version and delivery option. Use the
+versioned deployment resource linked from that option, together with its image.
 
-## Step 1: Subscribe on AWS Marketplace
+| Delivery option | Use it when | Client connection |
+|---|---|---|
+| [Amazon Bedrock AgentCore](#agentcore) | You want an AWS-managed MCP runtime, with public or VPC access to the target API | Signed AgentCore invocation |
+| [Private ECS/Fargate](#private-ecsfargate) | You want a dedicated container service and load balancer in your VPC | HTTPS MCP URL and MCP bearer token |
+| [Existing AppHub ECS/Fargate](#existing-apphub-ecsfargate) | You already have an AppHub cluster and HTTPS listener | Dedicated hostname and MCP bearer token |
+| [Amazon EKS](#amazon-eks) | You run workloads on an existing Kubernetes cluster | Internal service or your configured HTTPS ingress |
 
-1. Open the [OpenAPI MCP listing on AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi).
-2. Choose **Continue to Subscribe**, accept the terms, then choose **Continue to Configuration**.
-3. Under **Delivery Method**, select **Container image**.
-4. Choose **Continue to Launch**.
+AgentCore uses the **ARM64** image. ECS/EKS must use worker/task architecture
+matching the selected image; `-amd64` images require X86_64/AMD64 configuration.
 
-## Step 2: Deploy to Amazon Bedrock AgentCore Runtime
+SpaceMade's approved direct distribution pulls private seller ECR images shared
+with its AWS account. That path does not wait for Marketplace approval. Public
+CloudFormation URLs do not make their container images public, and sharing with
+SpaceMade does not grant unrelated AWS accounts access automatically.
 
-1. From the launch page, choose **Container image** and create an AgentCore
-   Runtime agent from the subscribed image.
-2. When prompted for environment variables, provide:
+## 2. Configure the target API
 
-   | Variable | Description |
-   |---|---|
-   | `OPENAPI_URL` | URL to your target API's OpenAPI/Swagger specification |
-   | `API_BASE_URL` | Base URL of the target API that generated tools should call |
-   | `OPENAPI_AUTH_TOKEN` | Bearer token for the target API's protected endpoints, if required |
+These are two separate credentials:
 
-3. Complete the runtime creation. AgentCore Runtime will host the MCP server,
-   exposing it at `POST /mcp` on port 8000.
-4. Note the runtime ARN shown after creation -- you'll use it to invoke the server.
+| Setting | Purpose |
+|---|---|
+| `OpenApiUrl` / `OPENAPI_URL` | The API's schema URL, not its website home page |
+| `ApiBaseUrl` / `API_BASE_URL` | Base URL used when executing generated tools |
+| `OpenApiAuthToken` / `OPENAPI_AUTH_TOKEN` | Server-side bearer credential for the target API |
+| `AllowedTools` / `MCP_ALLOWED_TOOLS` | Optional comma-separated allowed tool names |
+| `McpAuthToken` / `MCP_AUTH_TOKEN` | Separate credential protecting a directly hosted MCP endpoint |
 
-Alternatively, launch the published CloudFormation template:
+Use only credentials and API permissions appropriate to the tools you enable.
+CloudFormation masks NoEcho parameters; AppHub uses secret ARNs. Never put the
+upstream API credential in a website widget or client-side JavaScript.
 
-[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
+## AgentCore
 
-<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml&amp;stackName=openapi-mcp-agentcore"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch OpenAPI MCP AgentCore" /></a>
+1. Open **AgentCoreCloudFormationTemplate** from the selected release's deployment
+   resources and create a new CloudFormation stack.
+2. Keep the release's `ContainerImageUri`, and supply `OpenApiUrl`, `ApiBaseUrl`,
+   the upstream token if required, and the allowed tools.
+3. For an internet-reachable API, leave `NetworkMode=PUBLIC`. For a private API,
+   select `VPC` and provide `RuntimeSubnets` plus `VpcId` or existing
+   `RuntimeSecurityGroups`. With `VpcId`, the stack owns its runtime group;
+   `CmsSecurityGroupId` and `CmsPort` optionally create a scoped API access rule.
+4. Ensure private networking has routes/DNS/TLS to the API and access to ECR, S3,
+   CloudWatch and required AWS services through NAT or service endpoints. See
+   [AWS VPC configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-vpc.html).
+5. Launch the stack and wait for **CREATE_COMPLETE**. Record `RuntimeArn`, `Region`
+   and the invoker credentials from Outputs. Keep credentials in server-side
+   connection settings or your secret manager.
 
-The CloudFormation link uses the console's current Region. Select the target
-deployment Region before creating the stack.
+The runtime uses AgentCore's MCP protocol and AWS IAM invocation boundary.
+`NetworkMode=PUBLIC` describes outbound connectivity, not anonymous client access.
+The container's internal `/mcp` listener is not a public unauthenticated URL.
 
-> OpenAPI MCP runs as a stateless streamable-HTTP MCP server, matching AgentCore Runtime's native MCP protocol contract. Each invocation is session-isolated by the runtime; no server-side session state is required.
+### Verify the tools
 
-## Step 3 (alternative): Deploy to Amazon EKS
-
-If you'd rather self-host instead of using AgentCore Runtime, run the same container image as a standard deployment/service on your own EKS cluster, setting the same three environment variables. Route MCP client traffic to `POST /mcp` on port 8000.
-
-This is the Private OpenAPI MCP deployment path. The same image can run on ECS
-or another container platform; use private DNS, internal load balancing, VPN or
-private links as required by the target API. Do not expose an internal API or
-long-lived upstream token only to make the schema reachable.
-
-### Private ECS/Fargate launch
-
-For a turnkey private deployment in the customer's AWS account, launch the
-published ECS/Fargate template:
-
-[Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
-
-<a href="https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml&amp;stackName=openapi-mcp-private"><img src="https://raw.githubusercontent.com/solodev/aws/master/pages/images/solodev-launch-btn.png" width="200" alt="Launch Private OpenAPI MCP" /></a>
-
-The stack creates an ECS cluster, Fargate task definition, Application Load
-Balancer, security groups, service, and CloudWatch log group. Supply a VPC,
-two or more load balancer subnets, service subnets, `OpenApiUrl`, and
-`ApiBaseUrl`. The default internal load balancer keeps the MCP endpoint inside
-the VPC. Service subnets need NAT access to pull the subscribed image unless
-you deliberately enable public IPs for a test. Add an ACM certificate for
-HTTPS and restrict `IngressCidr` to the trusted client network.
-
-The stack outputs the endpoint. Configure MCP clients with the output URL plus
-`/mcp`; if `McpAuthToken` was set, send it as `Authorization: Bearer <token>`.
-The same JSON-RPC test below works for both the AgentCore and private
-ECS paths.
-
-## Step 4: Verify the runtime
-
-In AWS, open **Amazon Bedrock AgentCore > Agents > Runtime**, select the
-runtime, choose the `DEFAULT` endpoint, and select **Test**. The direct URL
-format is:
-
-```text
-https://<region>.console.aws.amazon.com/bedrock-agentcore/agents/<runtime-id>/test
-```
-
-Leave Session ID blank for the first request. Use MCP JSON-RPC messages, not
-the generic `prompt` example:
+Use the AgentCore console's runtime test interface with MCP JSON-RPC requests, or
+an IAM-authenticated AgentCore MCP client. Initialize the session:
 
 ```json
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"aws-console","version":"1.0"}}}
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"quickstart","version":"1.0"}}}
 ```
+
+Then request the tool list:
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
 ```
 
-Call a returned tool, such as `list-endpoints`:
+Expect the generated API tools permitted by your configuration. Call a returned
+read-only tool with arguments matching its schema. AgentCore API calls require
+AWS signing; a plain `curl` to `/mcp` is for directly hosted MCP, not a replacement
+for the AgentCore authentication flow.
 
-```json
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list-endpoints","arguments":{}}}
-```
+### Connect through Solodev Portal
 
-If the runtime returns HTTP 400, inspect CloudWatch logs and verify the
-OpenAPI URL is reachable and contains a `paths` object.
+Select **Agents → Add Agent**, your connected AWS account, its live CMS and
+**MCP**. Confirm the Marketplace subscription, choose the network and click
+**Launch**. After deployment, connect the outputs to the existing CMS MCP provider.
+Portal resolves CMS credentials on the server and preserves permitted tools.
+The single-Launch flow requires the corresponding Cloud/Portal launch update;
+a container release alone does not upgrade an existing Portal.
 
-## Step 5: Connect an MCP client
+## Private ECS/Fargate
 
-Using the AgentCore Runtime ARN (or your EKS-hosted URL), point any MCP client at the server and confirm the tool list loads:
+Launch **PrivateEcsCloudFormationTemplate** from the selected release. Supply the
+existing VPC, load-balancer/service subnets, API values, a separate MCP client token
+and the trusted ingress CIDR. The template creates a dedicated cluster, service,
+load balancer, security groups and logs; the load balancer is internal by default.
+Configure its certificate/HTTPS listener for clients outside a trusted local network.
 
-```bash
-curl -X POST https://<your-mcp-endpoint>/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
-```
+Wait for the service to become healthy, then use the stack's MCP endpoint. The
+subnets need ECR, CloudWatch and target-API access. Use the ARM64 task image
+specified by this delivery option. Detailed configuration is in the
+[private deployment guide](fargate-eks-quickstart.md).
 
-You should see a list of tools generated from your API's OpenAPI specification -- one or more per resource, covering search, create, read, and update operations where the spec defines them.
+## Existing AppHub ECS/Fargate
 
-## Next Steps
+Launch **AppHubCloudFormationTemplate**. Select the existing cluster, VPC, service
+subnets, listener, hostname and unused listener priority. Supply `CloudImageMcp`
+and matching `CpuArchitecture`, API configuration, `McpAuthSecretArn` and the
+upstream API secret ARN if needed. These AppHub token secrets contain raw strings.
 
-- Restrict which tools are exposed with the `MCP_ALLOWED_TOOLS` environment variable.
-- Protect the MCP server itself with `MCP_AUTH_TOKEN` (or `MCP_AUTH_TOKENS`) if it's reachable outside of AgentCore Runtime's own access controls.
-- For CMS targets, use the platform's current OpenAPI URL and connection token.
-  If the platform also offers a native MCP server, compare its domain-specific
-  workflows with the generated OpenAPI operations.
+The application stack owns only its service, routing rule, security group and
+related resources; it reuses the shared cluster and load balancer. Configure DNS
+and ensure the listener certificate covers the hostname. Follow the
+[AppHub guide](fargate-eks-quickstart.md#apphubfargate) for the exact input contract.
 
-## See Also
+## Amazon EKS
 
-- [Model Context Protocol specification](https://modelcontextprotocol.io/)
-- [Amazon Bedrock AgentCore Runtime for AWS Marketplace](https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html)
-- [Deploy MCP servers in AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)
+Use **EksDeploymentManifest** from the selected delivery option with your existing
+cluster. Set the exact subscribed image URI and matching node architecture;
+configure the API URLs and token secrets. The manifest's service is internal by
+default. Configure your own ingress, TLS and network access as required. Follow
+the [EKS guide](fargate-eks-quickstart.md#eks) for the namespace, configuration and
+verification commands.
 
-## AppHub/Fargate and EKS deployment
+## Verify directly hosted MCP
 
-See the [AppHub/Fargate and EKS quickstart](fargate-eks-quickstart.md) for an existing-cluster Fargate template, private EKS manifests, secrets, image access, and per-CMS isolation.
+For ECS, AppHub or EKS, initialize an MCP client against the output HTTPS `McpUrl`
+and configure its MCP bearer token. Request `tools/list`, then call a permitted
+read-only tool. This endpoint uses its own MCP client token, not the target API's
+token and not an AWS access key. The target API credential stays with the server.
+
+## Troubleshooting
+
+- **Image pull fails:** confirm the release URI, architecture, subscription or
+  seller sharing grant, and the task/runtime/node role's ECR permissions.
+- **Schema load fails:** check the actual schema URL, token, JSON/YAML content and
+  connectivity. A CMS login or SSO redirect is not an OpenAPI document.
+- **401/403:** check the appropriate credential: IAM for AgentCore invocation,
+  the MCP token for hosted MCP, or the upstream API token for tool execution.
+- **No tools or permission denied:** check the schema operations, API permissions,
+  tool allowlist and any CMS provider policy.
+- **Private API timeout:** verify VPC routes, DNS, TLS, runtime/API security groups
+  and necessary AWS service endpoints. VPC selection alone does not establish access.
+- **Stack failure:** open CloudFormation Events and the application CloudWatch
+  logs. Resolve the reported error before retrying the normal deployment action.
+
+## Upgrade or remove
+
+Update the existing application stack using the selected version's template and
+image while preserving API, secret and network settings. For EKS, apply the
+matching manifest through your normal Kubernetes deployment process. Delete the
+application stack or EKS workload to remove it; do not delete a shared AppHub,
+VPC, CMS or separately managed secrets to remove one MCP connection.

@@ -1,5 +1,11 @@
 # OpenAPI MCP AgentCore Quickstart
 
+For the current product deployment instructions, use the official
+[OpenAPI MCP quick start](docs/marketplace-quickstart.md) or
+[AgentCore Chat quick start](docs/agentcore-chat-quickstart.md).
+
+The reference material below covers additional examples and development setup.
+
 Turn an OpenAPI or Swagger API into MCP tools for an AI agent in a few minutes.
 
 This guide is for **OpenAPI MCP AgentCore**, the generic product that reads an

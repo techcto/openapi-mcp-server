@@ -53,7 +53,7 @@ DETAILS_JSON='{
                   "MCP_SERVER"
                ],
                "Description": "Deploy OpenAPI MCP as a container image on Amazon Bedrock AgentCore Runtime",
-               "UsageInstructions": "For end-user instructions on subscribing, configuring, testing, and connecting OpenAPI MCP AgentCore to a target OpenAPI or Swagger API, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md",
+               "UsageInstructions": "OpenAPI MCP quick start: subscribe, launch the ARM64 AgentCore runtime, configure the target API and verify MCP tools. https://github.com/techcto/openapi-mcp-server/blob/main/docs/marketplace-quickstart.md#agentcore",
                "EnvironmentVariables": [
                   {
                      "Name": "OPENAPI_URL",
@@ -92,7 +92,7 @@ DETAILS_JSON='{
                   "ECS"
                ],
                "Description": "Run OpenAPI MCP as a private ECS/Fargate service inside the customer AWS VPC",
-               "UsageInstructions": "For private deployment instructions, including VPC, subnet, ingress, target API, and MCP configuration, please visit: https://github.com/techcto/openapi-mcp-server/blob/main/QUICKSTART.md"
+               "UsageInstructions": "OpenAPI MCP quick start for Private ECS/Fargate: configure the VPC, API, MCP token and private endpoint. https://github.com/techcto/openapi-mcp-server/blob/main/docs/marketplace-quickstart.md#private-ecsfargate"
             }
          }
       },
@@ -113,7 +113,7 @@ DETAILS_JSON='{
                   "ECS"
                ],
                "Description": "Deploy a separate OpenAPI MCP configuration for one CMS/API on Existing AppHub ECS/Fargate",
-               "UsageInstructions": "Use the subscribed image URI and matching architecture. Deployment, secret configuration, health checks and MCP client instructions: https://github.com/techcto/openapi-mcp-server/blob/main/docs/fargate-eks-quickstart.md"
+               "UsageInstructions": "OpenAPI MCP quick start: use the subscribed image and matching architecture, then configure and verify the MCP service. https://github.com/techcto/openapi-mcp-server/blob/main/docs/marketplace-quickstart.md#existing-apphub-ecsfargate"
             }
          }
       },
@@ -127,14 +127,14 @@ DETAILS_JSON='{
                "DeploymentResources": [
                   {
                      "Name": "EksDeploymentManifest",
-                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/kubernetes/openapi-mcp.yaml"
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/kubernetes/{RELEASE_VERSION}/openapi-mcp.yaml"
                   }
                ],
                "CompatibleServices": [
                   "EKS"
                ],
                "Description": "Deploy a separate OpenAPI MCP configuration for one CMS/API on Amazon EKS",
-               "UsageInstructions": "Use the subscribed image URI and matching architecture. Deployment, secret configuration, health checks and MCP client instructions: https://github.com/techcto/openapi-mcp-server/blob/main/docs/fargate-eks-quickstart.md"
+               "UsageInstructions": "OpenAPI MCP quick start: use the subscribed image and matching architecture, then configure and verify the MCP service. https://github.com/techcto/openapi-mcp-server/blob/main/docs/marketplace-quickstart.md#amazon-eks"
             }
          }
       }
