@@ -8,10 +8,18 @@ and hostname rule. Deleting it leaves the selected CMS and shared AppHub intact.
 The CMS preset base template is `cms-apphub-ecs.yaml`. The root `cloud.yaml` contains both `openapi-mcp` and `cms-mcp-serverless` under `catalog-items`; each linked catalog item imports only its own entry. The MCP repository publishes both templates and the `solodev/openapi-mcp` images. A new MCP tag updates this independent product without a CMS tag or CMS stack update.
 
 The release pipeline follows Kubernetes UI: build into the seller's private ECR,
-promote the same image digests into Marketplace ECR, and grant the account in
-`DIRECT_PULL_ACCOUNT_ID` pull-only access to the seller repository. Cloud's
+promote the same image digests into Marketplace ECR, and grant the accounts in
+`DIRECT_PULL_ACCOUNT_IDS` pull-only access to the seller repository. Cloud's
 catalog uses seller ECR; Marketplace delivery uses Marketplace ECR. No second
 set of publishing credentials is required.
+
+Set the GitHub repository variable `DIRECT_PULL_ACCOUNT_IDS` to the comma-separated
+approved deployment account IDs, including SpaceMade. To update access for existing
+images, run **Actions → Update direct image access**. This uses the same policy
+script as releases and verifies both repositories without rebuilding images or
+submitting Marketplace changes. Grants are not transitive: each separate customer
+AWS account needs its own explicit pull grant. Other repository-policy statements
+are preserved.
 
 The template accepts the standard AppHub outputs (`VpcId`, `Cluster`, `ListenerArn`,
 `LoadBalancerSecurityGroup`, `ServiceSubnets`). The existing HTTPS listener must
