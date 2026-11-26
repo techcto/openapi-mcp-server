@@ -20,7 +20,8 @@ required. The widget remains static S3/CDN JavaScript; credentials stay in AWS.
 
 Push one `vX.Y.Z` tag using `git.sh`. Each release publishes **both** OpenAPI MCP
 and AgentCore Chat, including ARM64 and AMD64 seller ECR images, deployment
-templates and the Chat gateway ZIP. Legacy `chat-vX.Y.Z` tags run the same workflow;
+templates and the Chat gateway ZIP. ARM64 and AMD64 builds each run on native
+GitHub runners rather than QEMU. Legacy `chat-vX.Y.Z` tags run the same workflow;
 do not push both tag names for the same version.
 
 Seller ECR grants SpaceMade account `317530278439` pull-only access. These private
