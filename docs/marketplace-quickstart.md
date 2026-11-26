@@ -163,6 +163,8 @@ token and not an AWS access key. The target API credential stays with the server
 - **Stack failure:** open CloudFormation Events and the application CloudWatch
   logs. Resolve the reported error before retrying the normal deployment action.
 
+For `.env`-based stack commands, see [stack management](stack-management.md).
+
 ## Upgrade or remove
 
 Update the existing application stack using the selected version's template and

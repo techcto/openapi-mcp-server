@@ -94,14 +94,14 @@ Wait for the stack to reach **CREATE_COMPLETE**. Record `ChatApiUrl` and
 For `PublicChat=true`, verify the agent metadata:
 
 ```bash
-curl --fail --show-error "${CHAT_API_URL}/api/agents/chat"
+curl --fail --show-error "${CHAT_API_URL}/agents/chat"
 ```
 
 Send a first message:
 
 ```bash
 curl --fail --show-error \
-  "${CHAT_API_URL}/api/agents/chat/chat/new/messages" \
+  "${CHAT_API_URL}/agents/chat/chat/new/messages" \
   -H 'Content-Type: application/json' \
   --data '{"content":"What information is available on this website?"}'
 ```
@@ -131,6 +131,8 @@ supported chat widget or API client with `ChatApiUrl`; see the [widget reference
   check model permissions, MCP reachability, token secret and enabled read-only tools.
 - **VPC timeout:** check private DNS, routes, security groups and service endpoints.
   VPC mode alone does not establish access to the CMS.
+
+For `.env`-based stack commands, see [stack management](stack-management.md).
 
 ## Upgrade or remove
 

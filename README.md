@@ -32,6 +32,13 @@ API contract a practical bridge between business software and AI agents.
 Every release tag publishes both products. Direct seller ECR artifacts are shared
 with approved accounts; Marketplace submission and review are a separate stage.
 
+## Manage a stack from your terminal
+
+Set `STACK_NAME`, `PRODUCT`, `AWS_REGION`, `AWS_PROFILE` and `RELEASE_VERSION` in
+an ignored `.env` file. `bash cmd.sh install` creates the stack directly;
+`bash cmd.sh update VERSION` prepares a version-update change set for review.
+See [stack management](docs/stack-management.md) for both products and parameter examples.
+
 ## Subscribe on AWS Marketplace
 
 [Subscribe to OpenAPI MCP in AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi)
@@ -467,7 +474,8 @@ docs/
 test/
 samples/
 git.sh                       # tag/retag release helper
-cft.sh                        # local CloudFormation test-deploy helper
+cmd.sh                        # .env-based stack install/update/status entry point
+devops/cft.sh                 # CloudFormation command dispatcher
 ```
 
 ## License
