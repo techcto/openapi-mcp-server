@@ -1,0 +1,38 @@
+name: Update direct image access
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: direct-image-access
+  cancel-in-progress: false
+
+jobs:
+  share:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repository: [solodev/openapi-mcp, solodev/agentcore-chat]
+    env:
+      AWS_REGION: us-east-1
+      DIRECT_PULL_ACCOUNT_IDS: ${{ vars.DIRECT_PULL_ACCOUNT_IDS || '317530278439' }}
+      MP_MCP_REPOSITORY: ${{ matrix.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.MP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Apply pull-only access using the release policy script
+        run: bash devops/prepare-repositories.sh
+      - name: Verify the configured pull principals
+        run: |
+          aws ecr get-repository-policy --repository-name "$MP_MCP_REPOSITORY" --query policyText --output text |
+            jq -e --arg accounts "$DIRECT_PULL_ACCOUNT_IDS" '
+              .Statement[] | select(.Sid == "DirectCrossAccountPull") |
+              (.Principal.AWS | sort) == ($accounts | split(",") | unique | map("arn:aws:iam::" + . + ":root") | sort)
+            '

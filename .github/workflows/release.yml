@@ -16,7 +16,7 @@ on:
         default: true
 
 env:
-  DIRECT_PULL_ACCOUNT_ID: ${{ vars.DIRECT_PULL_ACCOUNT_ID || '317530278439' }}
+  DIRECT_PULL_ACCOUNT_IDS: ${{ vars.DIRECT_PULL_ACCOUNT_IDS || '317530278439' }}
   AWS_REGION: us-east-1
   MP_MCP_REPOSITORY: solodev/openapi-mcp
   MP_AWS_ECR: 709825985650.dkr.ecr.us-east-1.amazonaws.com

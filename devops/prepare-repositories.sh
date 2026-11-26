@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Provision publication repositories in the seller account, not application stacks.
-if [[ -n "${DIRECT_PULL_ACCOUNT_ID:-}" && ! "$DIRECT_PULL_ACCOUNT_ID" =~ ^[0-9]{12}$ ]]; then
-  echo 'DIRECT_PULL_ACCOUNT_ID must be a 12-digit AWS account ID.' >&2
+if [[ -n "${DIRECT_PULL_ACCOUNT_IDS:-}" && ! "$DIRECT_PULL_ACCOUNT_IDS" =~ ^[0-9]{12}(,[0-9]{12})*$ ]]; then
+  echo 'DIRECT_PULL_ACCOUNT_IDS must be comma-separated 12-digit AWS account IDs.' >&2
   exit 1
 fi
 partition=$(aws sts get-caller-identity --query Arn --output text | cut -d: -f2)
@@ -21,7 +21,7 @@ for repository in "$MP_MCP_REPOSITORY"; do
   fi
 
   # Keep unrelated policy statements when updating this release's sharing grant.
-  if [[ -n "${DIRECT_PULL_ACCOUNT_ID:-}" ]]; then
+  if [[ -n "${DIRECT_PULL_ACCOUNT_IDS:-}" ]]; then
     if aws ecr get-repository-policy --repository-name "$repository" \
       --query policyText --output text > "$workdir/policy.json" 2> "$workdir/error"; then
       :
@@ -31,11 +31,11 @@ for repository in "$MP_MCP_REPOSITORY"; do
       cat "$workdir/error" >&2
       exit 1
     fi
-    jq --arg principal "arn:$partition:iam::$DIRECT_PULL_ACCOUNT_ID:root" '
+    jq --arg accounts "$DIRECT_PULL_ACCOUNT_IDS" --arg partition "$partition" '
       .Statement = ((.Statement // [] | if type == "array" then . else [.] end
         | map(select(.Sid != "DirectCrossAccountPull"))) + [{
           Sid: "DirectCrossAccountPull", Effect: "Allow",
-          Principal: {AWS: $principal},
+          Principal: {AWS: ($accounts | split(",") | unique | map("arn:" + $partition + ":iam::" + . + ":root"))},
           Action: ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
         }])
     ' "$workdir/policy.json" > "$workdir/shared-policy.json"
