@@ -32,7 +32,7 @@ See docs/stack-management.md for .env and parameter examples.`;
 const fail = message => { throw new Error(message); };
 function version(value) {
   const result = (value || process.env.RELEASE_VERSION || '').replace(/^(chat-)?v/, '');
-  if (!/^\d+\.\d+\.\d+$/.test(result)) fail('Set RELEASE_VERSION or supply an immutable version, such as 0.1.13.');
+  if (!/^\d+\.\d+\.\d+$/.test(result)) fail('Set RELEASE_VERSION or supply an immutable version, such as 0.1.14.');
   return result;
 }
 function aws(...args) {

@@ -18,7 +18,7 @@ PRODUCT=agentcore-mcp
 STACK_NAME=my-openapi-mcp
 AWS_REGION=us-east-1
 AWS_PROFILE=my-aws-profile
-RELEASE_VERSION=0.1.13
+RELEASE_VERSION=0.1.14
 IMAGE_SOURCE=marketplace
 CFT_PARAMETERS_FILE=.cft-parameters.json
 ```
@@ -83,7 +83,7 @@ Chat and VPC configuration.
 ```bash
 bash cmd.sh install
 # Or select an explicit published version:
-bash cmd.sh install 0.1.13
+bash cmd.sh install 0.1.14
 ```
 
 Installation calls **CreateStack directly**. It starts deploying without a
@@ -101,7 +101,7 @@ outputs in your AWS console or secret manager.
 ## Update after a release tag
 
 ```bash
-bash cmd.sh update 0.1.14
+bash cmd.sh update 0.1.15
 ```
 
 Use a version whose images/artifacts are published and accessible to the account.
@@ -114,7 +114,7 @@ container and gateway on the same release.
 For separate planning and execution:
 
 ```bash
-bash cmd.sh plan 0.1.14
+bash cmd.sh plan 0.1.15
 bash cmd.sh apply 'arn:aws:cloudformation:us-east-1:123456789012:changeSet/NAME/ID'
 ```
 
