@@ -26,9 +26,9 @@ custom MCP adapter.</p>
 <li>Public or VPC access to your target API</li>
 <li>AgentCore, private ECS/Fargate, AppHub and EKS delivery options</li>
 </ul>
+<p><a href="https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi"><strong>Subscribe on AWS Marketplace</strong></a></p>
 <p><a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https%3A%2F%2Fopenapi-mcp.s3.us-east-1.amazonaws.com%2Fcloudformation%2F0.1.13%2Fagentcore-runtime-marketplace.yaml&amp;stackName=openapi-mcp-agentcore"><img src="docs/images/launch-cloudformation.svg" width="220" height="44" alt="Launch OpenAPI MCP CloudFormation stack on AWS" /></a></p>
-<p><a href="https://aws.amazon.com/marketplace/pp/prodview-g3jgkgokncmwi"><strong>Subscribe on AWS Marketplace</strong></a><br />
-<a href="docs/marketplace-quickstart.md">Read the MCP quick start →</a></p>
+<p><a href="docs/marketplace-quickstart.md">Read the MCP quick start →</a></p>
 </td>
 <td width="50%" valign="top">
 <h3>AgentCore Chat</h3>
@@ -41,9 +41,9 @@ OpenAPI MCP or another compatible MCP service.</p>
 <li>Read-only website chat with public or authenticated user access</li>
 <li>Public or VPC access to your CMS/MCP service</li>
 </ul>
+<p><a href="https://aws.amazon.com/marketplace/pp?sku=c2tg5hj6k3lq7hwvqs1qszlhx"><strong>Subscribe on AWS Marketplace</strong></a></p>
 <p><a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https%3A%2F%2Fopenapi-mcp.s3.us-east-1.amazonaws.com%2Fcloudformation%2Fchat%2F0.1.13%2Fagentcore-chat-marketplace.yaml&amp;stackName=agentcore-chat"><img src="docs/images/launch-cloudformation.svg" width="220" height="44" alt="Launch AgentCore Chat CloudFormation stack on AWS" /></a></p>
-<p><a href="https://aws.amazon.com/marketplace/pp?sku=c2tg5hj6k3lq7hwvqs1qszlhx"><strong>Subscribe on AWS Marketplace</strong></a><br />
-<a href="docs/agentcore-chat-quickstart.md">Read the Chat quick start →</a></p>
+<p><a href="docs/agentcore-chat-quickstart.md">Read the Chat quick start →</a></p>
 </td>
 </tr>
 </table>
