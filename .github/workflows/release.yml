@@ -1,14 +1,19 @@
-name: Release to AWS Marketplace
+name: Release MCP and AgentCore Chat
 
 on:
   push:
     tags:
       - "v*"
+      - "chat-v*"
   workflow_dispatch:
     inputs:
       release_version:
         description: "Release version to build/push (no leading v)"
         required: true
+      submit_marketplace:
+        description: Submit both products to AWS Marketplace
+        type: boolean
+        default: true
 
 env:
   DIRECT_PULL_ACCOUNT_ID: ${{ vars.DIRECT_PULL_ACCOUNT_ID || '317530278439' }}
@@ -17,20 +22,24 @@ env:
   MP_AWS_ECR: 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
-  release:
+  publish-mcp:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      registry: ${{ steps.seller.outputs.registry }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Resolve release version
         id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.release_version }}
         run: |
-          if [ -n "${{ github.event.inputs.release_version }}" ]; then
-            echo "value=${{ github.event.inputs.release_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
+          version="${REQUESTED_VERSION:-${GITHUB_REF_NAME#chat-}}"
+          version="${version#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node for deployment contract checks
         uses: actions/setup-node@v4
@@ -103,28 +112,6 @@ jobs:
           labels: org.opencontainers.image.revision=${{ github.sha }}
           tags: ${{ steps.seller.outputs.registry }}/${{ env.MP_MCP_REPOSITORY }}:${{ steps.version.outputs.value }}-amd64
 
-      - name: Promote the same images into Marketplace ECR
-        env:
-          DIRECT_ECR: ${{ steps.seller.outputs.registry }}
-          RELEASE_VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$MP_AWS_ECR"
-          for suffix in "" "-amd64"; do
-            tag="$RELEASE_VERSION$suffix"
-            digest=$(aws ecr describe-images --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
-            docker buildx imagetools create --prefer-index=false --tag "$MP_AWS_ECR/$MP_MCP_REPOSITORY:$tag" "$DIRECT_ECR/$MP_MCP_REPOSITORY@$digest"
-            promoted=$(aws ecr describe-images --registry-id "${MP_AWS_ECR%%.*}" --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
-            test "$promoted" = "$digest"
-          done
-
-      - name: Prepare Marketplace changeset
-        run: |
-          cp devops/changeset.sh.dst devops/changeset.sh
-          sed -i "s/{RELEASE_VERSION}/${{ steps.version.outputs.value }}/g" devops/changeset.sh
-
-      - name: Submit AWS Marketplace changeset
-        run: bash devops/changeset.sh
-
   package-zip:
     runs-on: ubuntu-latest
     steps:
@@ -133,12 +120,13 @@ jobs:
 
       - name: Resolve release version
         id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.release_version }}
         run: |
-          if [ -n "${{ github.event.inputs.release_version }}" ]; then
-            echo "value=${{ github.event.inputs.release_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
+          version="${REQUESTED_VERSION:-${GITHUB_REF_NAME#chat-}}"
+          version="${version#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -174,9 +162,15 @@ jobs:
       # the bucket policy must grant public s3:GetObject on cloudformation/*.
       - name: Upload OpenAPI MCP CFTs to S3
         run: |
+          seller_account=$(aws sts get-caller-identity --query Account --output text)
+          seller_registry="$seller_account.dkr.ecr.$AWS_REGION.amazonaws.com"
           for template in agentcore-runtime private-ecs apphub-ecs cms-apphub-ecs; do
             cp "devops/cloudformation/${template}.yaml" "/tmp/${template}.yaml"
             sed -i "s/{RELEASE_VERSION}/${{ steps.version.outputs.value }}/g" "/tmp/${template}.yaml"
+            aws s3 cp "/tmp/${template}.yaml" \
+              "s3://openapi-mcp/cloudformation/${{ steps.version.outputs.value }}/${template}-marketplace.yaml" \
+              --acl public-read
+            sed -i "s|709825985650.dkr.ecr.us-east-1.amazonaws.com|$seller_registry|g" "/tmp/${template}.yaml"
             aws s3 cp "/tmp/${template}.yaml" \
               "s3://openapi-mcp/cloudformation/${template}.yaml" \
               --acl public-read
@@ -189,3 +183,149 @@ jobs:
         run: |
           aws s3 cp devops/kubernetes/openapi-mcp.yaml \
             s3://openapi-mcp/kubernetes/openapi-mcp.yaml --acl public-read
+
+  publish-chat:
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      registry: ${{ steps.seller.outputs.registry }}
+    runs-on: ubuntu-latest
+    env:
+      MP_MCP_REPOSITORY: solodev/agentcore-chat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Resolve version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.release_version }}
+        run: |
+          version="${REQUESTED_VERSION:-${GITHUB_REF_NAME#chat-}}"
+          version="${version#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: Check Chat contracts and package gateway
+        run: |
+          npm ci --ignore-scripts --omit=dev
+          node --test test/agentcore-vpc.test.js
+          npm ci --ignore-scripts --prefix products/chat
+          node --test products/chat/test/*.test.mjs
+          cd products/chat
+          zip -q -r /tmp/chat-gateway.zip gateway.mjs package.json node_modules
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.MP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Resolve seller registry and reuse existing pull sharing
+        id: seller
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "registry=$account.dkr.ecr.$AWS_REGION.amazonaws.com" >> "$GITHUB_OUTPUT"
+          bash devops/prepare-repositories.sh
+      - name: Log in to seller ECR
+        run: aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${{ steps.seller.outputs.registry }}"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Publish AgentCore ARM64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: products/chat/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          build-args: APP_VERSION=${{ steps.version.outputs.value }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ steps.seller.outputs.registry }}/solodev/agentcore-chat:${{ steps.version.outputs.value }}
+      - name: Publish test and AppHub AMD64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: products/chat/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          build-args: APP_VERSION=${{ steps.version.outputs.value }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ steps.seller.outputs.registry }}/solodev/agentcore-chat:${{ steps.version.outputs.value }}-amd64
+      - name: Publish versioned gateway and template
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+          SELLER_REGISTRY: ${{ steps.seller.outputs.registry }}
+        run: |
+          aws s3 cp /tmp/chat-gateway.zip "s3://openapi-mcp/chat/$RELEASE_VERSION/gateway.zip"
+          python3 - <<'PY'
+          import os,pathlib
+          text=pathlib.Path('devops/cloudformation/agentcore-chat.yaml').read_text().replace('{RELEASE_VERSION}',os.environ['RELEASE_VERSION'])
+          registry=os.environ['SELLER_REGISTRY']
+          text=text.replace('951157235292.dkr.ecr.us-east-1.amazonaws.com',registry).replace('arn:aws:ecr:us-east-1:951157235292:repository/solodev/agentcore-chat',f"arn:aws:ecr:us-east-1:{registry.split('.')[0]}:repository/solodev/agentcore-chat")
+          pathlib.Path('/tmp/agentcore-chat.yaml').write_text(text)
+          PY
+          aws s3 cp /tmp/agentcore-chat.yaml "s3://openapi-mcp/cloudformation/chat/$RELEASE_VERSION/agentcore-chat.yaml" --acl public-read
+
+  marketplace-mcp:
+    needs: [publish-mcp, package-zip]
+    if: ${{ github.event_name == 'push' || inputs.submit_marketplace }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: openapi-mcp-marketplace
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.MP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to seller ECR
+        run: aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${{ needs.publish-mcp.outputs.registry }}"
+      - name: Promote the same images into Marketplace ECR
+        env:
+          DIRECT_ECR: ${{ needs.publish-mcp.outputs.registry }}
+          RELEASE_VERSION: ${{ needs.publish-mcp.outputs.version }}
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$MP_AWS_ECR"
+          for suffix in "" "-amd64"; do
+            tag="$RELEASE_VERSION$suffix"
+            digest=$(aws ecr describe-images --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+            docker buildx imagetools create --prefer-index=false --tag "$MP_AWS_ECR/$MP_MCP_REPOSITORY:$tag" "$DIRECT_ECR/$MP_MCP_REPOSITORY@$digest"
+            promoted=$(aws ecr describe-images --registry-id "${MP_AWS_ECR%%.*}" --repository-name "$MP_MCP_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+            test "$promoted" = "$digest"
+          done
+
+      - name: Prepare Marketplace changeset
+        run: |
+          cp devops/changeset.sh.dst devops/changeset.sh
+          sed -i "s/{RELEASE_VERSION}/${{ needs.publish-mcp.outputs.version }}/g" devops/changeset.sh
+
+      - name: Submit AWS Marketplace changeset
+        run: bash devops/changeset.sh
+
+  marketplace-chat:
+    needs: publish-chat
+    if: ${{ github.event_name == 'push' || inputs.submit_marketplace }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: agentcore-chat-marketplace
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.MP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.MP_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to seller ECR
+        run: aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${{ needs.publish-chat.outputs.registry }}"
+      - name: Submit AgentCore Chat to AWS Marketplace
+        env:
+          CHAT_MARKETPLACE_PRODUCT_ID: ${{ vars.CHAT_MARKETPLACE_PRODUCT_ID || 'prod-csnnyvqmsdz5s' }}
+          CHAT_MARKETPLACE_REPOSITORY: ${{ vars.CHAT_MARKETPLACE_REPOSITORY || '709825985650.dkr.ecr.us-east-1.amazonaws.com/solodev/agentcore-chat' }}
+          RELEASE_VERSION: ${{ needs.publish-chat.outputs.version }}
+          SELLER_REGISTRY: ${{ needs.publish-chat.outputs.registry }}
+        run: bash devops/submit-chat-marketplace.sh

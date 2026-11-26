@@ -43,7 +43,7 @@ DETAILS_JSON='{
                "DeploymentResources": [
                   {
                      "Name": "AgentCoreCloudFormationTemplate",
-                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/agentcore-runtime.yaml"
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/{RELEASE_VERSION}/agentcore-runtime-marketplace.yaml"
                   }
                ],
                "CompatibleServices": [
@@ -85,7 +85,7 @@ DETAILS_JSON='{
                "DeploymentResources": [
                   {
                      "Name": "PrivateEcsCloudFormationTemplate",
-                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/private-ecs.yaml"
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/{RELEASE_VERSION}/private-ecs-marketplace.yaml"
                   }
                ],
                "CompatibleServices": [
@@ -106,7 +106,7 @@ DETAILS_JSON='{
                "DeploymentResources": [
                   {
                      "Name": "AppHubCloudFormationTemplate",
-                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/apphub-ecs.yaml"
+                     "Url": "https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/{RELEASE_VERSION}/apphub-ecs-marketplace.yaml"
                   }
                ],
                "CompatibleServices": [

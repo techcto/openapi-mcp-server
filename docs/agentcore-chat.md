@@ -1,29 +1,41 @@
 # Solodev AgentCore Chat
 
-Two independent products share this repository:
+Both products share one release workflow and version:
 
 | Product | Purpose | Release tag |
 |---|---|---|
-| OpenAPI MCP / AgentCore MCP | Expose an API as MCP tools | `v*` (existing pipeline) |
-| Solodev AgentCore Chat | Run a model/tool loop and serve a website widget | `chat-v*` |
+| OpenAPI MCP / AgentCore MCP | Expose an API as MCP tools | `v*` or `chat-v*` |
+| Solodev AgentCore Chat | Run a model/tool loop and serve a website widget | `v*` or `chat-v*` |
 
 Chat is a small standalone harness, not an Osirus deployment. It runs inside
 Amazon Bedrock AgentCore in the customer's AWS account and reads live CMS
 context through an authenticated MCP endpoint. No OpenSearch or Osirus key is
 required. The widget remains static S3/CDN JavaScript; credentials stay in AWS.
 
-## Test before Marketplace
+## Release publication
 
-Push `chat-v0.1.0` or manually run **Build AgentCore Chat**. Normal builds publish
-seller ECR images, the gateway ZIP and versioned CFT without submitting to
-Marketplace. ARM64 uses `solodev/agentcore-chat:0.1.0`; AMD64 uses
-`solodev/agentcore-chat:0.1.0-amd64`. The existing publication script grants
-SpaceMade pull-only access. A consuming task role must also permit ECR pulls.
+Push one `vX.Y.Z` tag using `git.sh`. Each release publishes **both** OpenAPI MCP
+and AgentCore Chat, including ARM64 and AMD64 seller ECR images, deployment
+templates and the Chat gateway ZIP. Legacy `chat-vX.Y.Z` tags run the same workflow;
+do not push both tag names for the same version.
 
-The published template is:
-`https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/chat/0.1.0/agentcore-chat.yaml`.
-Deploy in us-east-1 using a reviewed CloudFormation change set. Other Regions
-require the ZIP and image to be available in that Region.
+Seller ECR grants SpaceMade account `317530278439` pull-only access. These private
+images and the public deployment templates are usable without Marketplace approval.
+The consuming task or runtime role must also permit the corresponding ECR pulls.
+
+The workflow then promotes the same images and submits **both** Marketplace
+products automatically. Submissions are separate jobs, so Marketplace review or a
+submission failure does not block the direct seller artifacts. Manual workflow runs
+can disable `submit_marketplace` for a direct-only release; tag releases always
+submit both products.
+
+Chat's direct template is:
+`https://openapi-mcp.s3.us-east-1.amazonaws.com/cloudformation/chat/X.Y.Z/agentcore-chat.yaml`.
+Its Marketplace template uses the `agentcore-chat-marketplace.yaml` suffix.
+MCP direct templates use `cloudformation/X.Y.Z/<template>.yaml`; the Marketplace
+copies use `<template>-marketplace.yaml` and point at the Marketplace registry.
+
+Deploy in us-east-1. Other Regions require the ZIP and image in that Region.
 
 Supply:
 - `McpUrl`: the CMS/native or standalone MCP HTTPS endpoint.
@@ -92,9 +104,9 @@ AgentCore Chat is a separate product from OpenAPI MCP:
 
 The workflow defaults to this product and repository. Repository variables
 `CHAT_MARKETPLACE_PRODUCT_ID` and `CHAT_MARKETPLACE_REPOSITORY` may override
-these values. Explicitly run the workflow with the tested `release_version`
-and `submit_marketplace=true` to promote the existing seller image digest and
-submit the separate AGENT delivery option. Submission does not launch a stack.
+these values. Every release tag promotes the same seller image digest and
+submits the separate AGENT delivery option automatically, alongside the MCP
+product. Submission does not launch a stack.
 
 ## CMS / Portal integration
 
