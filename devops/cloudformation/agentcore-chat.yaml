@@ -83,7 +83,7 @@ Parameters:
     Default: ''
   AllowedOrigins:
     Type: String
-    Description: Comma-separated exact HTTPS website origins allowed to embed the widget. No wildcard.
+    Description: Comma-separated HTTPS origins allowed to embed Chat. https://*.example.com allows one subdomain level; add the apex separately.
 Rules:
   CmsIngressRequiresVpc:
     RuleCondition: !Not [!Equals [!Ref CmsSecurityGroupId, '']]

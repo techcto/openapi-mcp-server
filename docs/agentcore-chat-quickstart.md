@@ -62,7 +62,7 @@ Review these settings:
 | `McpCredentialSecretArn` | ARN of the secret containing the MCP token JSON |
 | `AgentName`, `ModelId` | The displayed name and an available Bedrock model ID |
 | `AllowedTools` | Optional comma-separated allowlist; Chat still permits only read-only tools |
-| `AllowedOrigins` | Exact website origins, comma-separated, with no wildcard |
+| `AllowedOrigins` | HTTPS origins, comma-separated; https://*.example.com permits one subdomain level |
 | `PublicChat` | `true` for anonymous read-only website chat; otherwise leave `false` |
 | `OidcIssuer`, `OidcAudience` | Required when `PublicChat=false`; use your HTTPS OIDC issuer and audience |
 | `EnableAutonomous` | Leave `false` for a website chat deployment |
@@ -108,7 +108,7 @@ curl --fail --show-error \
 
 Set `CHAT_API_URL` to the stack output. For authenticated Chat, include an
 `Authorization: Bearer` header containing a valid user OIDC access token. For
-browser calls, the website's Origin must match `AllowedOrigins`.
+browser calls, the website or Portal origin must match `AllowedOrigins`. Wildcard entries are matched server-side; the CORS response returns the requesting origin.
 
 A successful reply includes `message.content` and a signed `chat.id`. Reuse that
 chat ID in place of `new` for the next message; never substitute an AgentCore ARN,

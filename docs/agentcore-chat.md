@@ -45,7 +45,7 @@ Deploy in us-east-1. Other Regions require the ZIP and image in that Region.
 Supply:
 - `McpUrl`: the CMS/native or standalone MCP HTTPS endpoint.
 - `McpCredentialSecretArn`: a same-Region secret containing `{"token":"..."}`.
-- `AllowedOrigins`: exact website origins, separated by commas.
+- `AllowedOrigins`: HTTPS origins, separated by commas. `https://*.example.com` permits one subdomain level; list `https://example.com` separately for the apex.
 - `OidcIssuer` and `OidcAudience` for authenticated chat, or explicitly select
   `PublicChat=true` for anonymous, read-only website chat.
 

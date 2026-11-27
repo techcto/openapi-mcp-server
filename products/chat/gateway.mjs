@@ -49,12 +49,29 @@ async function identity(headers) {
   if (!key || !verify('RSA-SHA256', Buffer.from(`${head}.${body}`), createPublicKey({ key, format: 'jwk' }), Buffer.from(signature, 'base64url'))) throw new Error('Invalid token.');
   return `${issuer}:${claims.sub}`;
 }
+/** HTTPS wildcard origins cover one subdomain label and never the apex or another domain. */
+export function originAllowed(origin, allowed) {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:' || url.origin !== origin) return false;
+    return allowed.some(entry => {
+      if (entry === origin) return true;
+      if (!/^https:\/\/\*\.[a-z0-9.-]+(?::[0-9]+)?$/.test(entry)) return false;
+      const pattern = new URL(entry.replace('://*.', '://wildcard.'));
+      const suffix = pattern.hostname.slice('wildcard'.length);
+      const label = url.hostname.endsWith(suffix) ? url.hostname.slice(0, -suffix.length) : '';
+      return url.port === pattern.port && label !== '' && !label.includes('.');
+    });
+  } catch { return false; }
+}
+
 export async function handler(event) {
   const headers = Object.fromEntries(Object.entries(event.headers || {}).map(([key, value]) => [key.toLowerCase(), value]));
   const origin = headers.origin, allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-  const responseHeaders = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Vary: 'Origin', ...(origin && allowed.includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Agent-Id', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' } : {}) };
+  const permitted = origin && originAllowed(origin, allowed);
+  const responseHeaders = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Vary: 'Origin', ...(permitted ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Agent-Id', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' } : {}) };
   const respond = (statusCode, body) => ({ statusCode, headers: responseHeaders, body: JSON.stringify(body) });
-  if (origin && !allowed.includes(origin)) return respond(403, { error: 'Origin is not allowed.' });
+  if (origin && !permitted) return respond(403, { error: 'Origin is not allowed.' });
   const method = event.requestContext?.http?.method || event.httpMethod, path = event.rawPath || event.path;
   if (method === 'OPTIONS') return respond(204, {});
   let subject;
