@@ -76,7 +76,7 @@ export async function handler(event) {
   if (method === 'OPTIONS') return respond(204, {});
   let subject;
   try { subject = await identity(headers); } catch { return respond(401, { error: 'Sign in to continue.' }); }
-  if (method === 'GET' && path === '/api/agents/chat') return respond(200, { agent: { id: 'chat', name: process.env.AGENT_NAME || 'Solodev Assistant', type: 'chat', status: 'live', is_ai_enabled: true, greeting: 'How can I help?', custom_options: [], show_map: false } });
+  if (method === 'GET' && path === '/api/agents/chat') return respond(200, { agent: { id: 'chat', name: process.env.AGENT_NAME || 'Solodev Assistant', type: 'chat', status: 'live', is_ai_enabled: true, greeting: 'How can I help?', custom_hex_color: '#006FE5', custom_options: [], show_map: false } });
   if (method === 'GET' && path === '/api/agents/chat/page-narration') return respond(200, { page_narration: { supported: false, supportsTextSummary: false, supportsSpeech: false } });
   const match = /^\/api\/agents\/chat\/chat\/([^/]+)\/messages$/.exec(path || '');
   if (method !== 'POST' || !match) return respond(404, { error: 'Not found.' });
